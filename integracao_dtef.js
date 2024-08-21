@@ -19,7 +19,11 @@ const libDPOSDRV = ffi.Library('libDPOSDRV.so', {
     'VersaoDPOS': ['int', [charPtr]],
     'ProcuraPinPad': ['int', [charPtr]],
     'TransacaoCartaoDebito': ['int', ['string', 'string', charPtr]],
+    'TransacaoCartaoCredito': ['int', ['string', 'string', charPtr]],
+    'TransacaoCartaoVoucher': ['int', ['string', 'string', charPtr]],
     'ConfirmaCartao': ['int', ['string']],
+    'DesfazCartao': ['int', ['string']],
+    'FinalizaTransacao': ['int', []],
 });
 
 class ClasseIntegracao {
@@ -124,8 +128,6 @@ class ClasseIntegracao {
 
     TransacaoCartaoDebito(valor, cupom) {
         const pNumeroControle = Buffer.alloc(1024, 0);
-        const pValor = Buffer.from(valor + '\0', 'utf8');
-        const pCupom = Buffer.from(cupom + '\0', 'utf8');
         var numeroControle = '';
 
         let resultado = 11;
@@ -139,11 +141,61 @@ class ClasseIntegracao {
         return { resultado, numeroControle };
     }
 
+    TransacaoCartaoCredito(valor, cupom) {
+        const pNumeroControle = Buffer.alloc(1024, 0);
+        var numeroControle = '';
+
+        let resultado = 11;
+
+        if (libDPOSDRV.TransacaoCartaoCredito) {
+            resultado = libDPOSDRV.TransacaoCartaoCredito(valor, cupom, pNumeroControle);
+            // Retrieve the string from the buffer
+            numeroControle = pNumeroControle.toString('utf8').replace(/\0/g, '');  // Handle null-termination
+        }
+
+        return { resultado, numeroControle };
+    }
+
+    TransacaoCartaoVoucher(valor, cupom) {
+        const pNumeroControle = Buffer.alloc(1024, 0);
+        var numeroControle = '';
+
+        let resultado = 11;
+
+        if (libDPOSDRV.TransacaoCartaoCredito) {
+            resultado = libDPOSDRV.TransacaoCartaoVoucher(valor, cupom, pNumeroControle);
+            // Retrieve the string from the buffer
+            numeroControle = pNumeroControle.toString('utf8').replace(/\0/g, '');  // Handle null-termination
+        }
+
+        return { resultado, numeroControle };
+    }
+
     ConfirmaCartao(numeroControle) {
         let resultado = 11;
 
         if (libDPOSDRV.ConfirmaCartao) {
             resultado = libDPOSDRV.ConfirmaCartao(numeroControle);
+        }
+
+        return resultado;
+    }
+
+    DesfazCartao(numeroControle) {
+        let resultado = 11;
+
+        if (libDPOSDRV.DesfazCartao) {
+            resultado = libDPOSDRV.DesfazCartao(numeroControle);
+        }
+
+        return resultado;
+    }
+
+    FinalizaTransacao() {
+        let resultado = 11;
+
+        if (libDPOSDRV.FinalizaTransacao) {
+            resultado = libDPOSDRV.FinalizaTransacao();
         }
 
         return resultado;
