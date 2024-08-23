@@ -12,6 +12,10 @@ const RequestType = Object.freeze({
     TRANSACAO_VOUCHER: 'transacaoVoucher',
     CONFIRMA: 'confirma',
     CONSULTA_PDV: 'consultaPDV',
+    DISPLAY: 'display',
+    ERROR: 'error',
+    MESSAGE: 'message',
+    BEEP: 'beep',
 });
 
 class WebSocketServer {
@@ -100,19 +104,19 @@ class WebSocketServer {
     }
 
     handleDisplayTerminal(message) {
-        this.broadcast({ type: 'display', message });
+        this.broadcast({ type: RequestType.DISPLAY, message });
     }
 
     handleDisplayError(message) {
-        this.broadcast({ type: 'error', message });
+        this.broadcast({ type: RequestType.ERROR, message });
     }
 
     handleDisplayMessage(message) {
-        this.broadcast({ type: 'message', message });
+        this.broadcast({ type: RequestType.MESSAGE, message });
     }
 
     handleBeep() {
-        this.broadcast({ type: 'beep' });
+        this.broadcast({ type: RequestType.BEEP });
     }
 
     broadcast(data) {

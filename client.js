@@ -11,6 +11,10 @@ const RequestType = Object.freeze({
     TRANSACAO_VOUCHER: 'transacaoVoucher',
     CONFIRMA: 'confirma',
     CONSULTA_PDV: 'consultaPDV',
+    DISPLAY: 'display',
+    ERROR: 'error',
+    MESSAGE: 'message',
+    BEEP: 'beep',
 });
 
 class WebSocketClient {
@@ -74,6 +78,21 @@ class WebSocketClient {
             case RequestType.CONFIRMA:
                 console.log('Confirm Result:', response.result);
                 break;
+            case RequestType.CONSULTA_PDV:
+                console.log('PDV Search Result:', response.result);
+                break;
+            case RequestType.DISPLAY:
+                console.log('Display Message:', response.result);
+                break;
+            case RequestType.ERROR:
+                console.error('Error:', response.result);
+                break;
+            case RequestType.MESSAGE:
+                console.log('Message:', response.result);
+                break;
+            case RequestType.BEEP:
+                console.log('Beep!');
+                break;
             default:
                 console.warn('Unknown response type:', response.type);
         }
@@ -97,14 +116,8 @@ setTimeout(() => {
     setTimeout(() => {
         client.sendRequest(RequestType.CONSULTA_PDV);
     }, 2000);
+
+    setTimeout(() => {
+        client.sendRequest(RequestType.TRANSACAO_DEBITO, { valor: '1000', cupom: '12345' });
+    }, 5000);
 }, 1000);
-
-
-setTimeout(() => {
-    client.sendRequest(RequestType.TRANSACAO_CREDITO, { valor: '100.00', cupom: '12345' });
-}, 10000);
-
-/*setTimeout(() => {
-    client.sendRequest(RequestType.CONFIRMA, { numeroControle: '54321' });
-}, 15000);
-*/
