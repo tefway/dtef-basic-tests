@@ -24,11 +24,24 @@ const libDPOSDRV = ffi.Library('libDPOSDRV.so', {
     'ConfirmaCartao': ['int', ['string']],
     'DesfazCartao': ['int', ['string']],
     'FinalizaTransacao': ['int', []],
+    'ConsultaCadastroPDV': ['int', [charPtr]],
 });
 
 class ClasseIntegracao {
     constructor() {
         this.handle = null;
+    }
+
+    bufferParser(buffer) {
+        const result = buffer.toString('utf8').replace(/\0/g, '');  // Handle null-termination
+
+        // if result has invalid characters, try using windows-1252 encoding
+        if (result.includes('�')) {
+            const decoder = new TextDecoder('windows-1252');
+            return decoder.decode(buffer).replace(/\0/g, '');
+        }
+
+        return result;
     }
 
     carregaDll() {
@@ -102,7 +115,7 @@ class ClasseIntegracao {
             if (VersaoDPOSPtr) {
                 resultado = VersaoDPOSPtr(pDadosBuffer);
                 // Retrieve the string from the buffer
-                const pDados = pDadosBuffer.toString('utf8').replace(/\0/g, '');  // Handle null-termination
+                const pDados = this.bufferParser(pDadosBuffer);  // Handle null-termination
                 return { resultado, pDados };
             }
         }
@@ -120,7 +133,7 @@ class ClasseIntegracao {
         if (ProcuraPinPadPtr) {
             resultado = ProcuraPinPadPtr(pDadosBuffer);
             // Retrieve the string from the buffer
-            pDados = pDadosBuffer.toString('utf8').replace(/\0/g, '');  // Handle null-termination
+            pDados = this.bufferParser(pDadosBuffer);  // Handle null-termination
         }
 
         return { resultado, pDados };
@@ -135,7 +148,7 @@ class ClasseIntegracao {
         if (libDPOSDRV.TransacaoCartaoDebito) {
             resultado = libDPOSDRV.TransacaoCartaoDebito(valor, cupom, pNumeroControle);
             // Retrieve the string from the buffer
-            numeroControle = pNumeroControle.toString('utf8').replace(/\0/g, '');  // Handle null-termination
+            numeroControle = this.bufferParser(pNumeroControle);  // Handle null-termination
         }
 
         return { resultado, numeroControle };
@@ -150,7 +163,7 @@ class ClasseIntegracao {
         if (libDPOSDRV.TransacaoCartaoCredito) {
             resultado = libDPOSDRV.TransacaoCartaoCredito(valor, cupom, pNumeroControle);
             // Retrieve the string from the buffer
-            numeroControle = pNumeroControle.toString('utf8').replace(/\0/g, '');  // Handle null-termination
+            numeroControle = this.bufferParser(pNumeroControle);  // Handle null-termination
         }
 
         return { resultado, numeroControle };
@@ -165,7 +178,7 @@ class ClasseIntegracao {
         if (libDPOSDRV.TransacaoCartaoCredito) {
             resultado = libDPOSDRV.TransacaoCartaoVoucher(valor, cupom, pNumeroControle);
             // Retrieve the string from the buffer
-            numeroControle = pNumeroControle.toString('utf8').replace(/\0/g, '');  // Handle null-termination
+            numeroControle = this.bufferParser(pNumeroControle);  // Handle null-termination
         }
 
         return { resultado, numeroControle };
@@ -199,6 +212,20 @@ class ClasseIntegracao {
         }
 
         return resultado;
+    }
+
+    ConsultaCadastroPDV() {
+        let resultado = 11;
+        const pMensagem = Buffer.alloc(1024, 0);
+
+        if (libDPOSDRV.ConsultaCadastroPDV) {
+            resultado = libDPOSDRV.ConsultaCadastroPDV(pMensagem);
+            // Retrieve the string from the buffer
+            const mensagem = this.bufferParser(pMensagem);  // Handle null-termination
+            return { resultado, mensagem };
+        }
+
+        return { resultado, mensagem: '' };
     }
 }
 
