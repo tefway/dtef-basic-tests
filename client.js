@@ -105,6 +105,10 @@ const url = process.env.WS_URL || 'ws://localhost:8080';
 // Example usage
 const client = new WebSocketClient(url);
 
+// type the valor
+const valor = process.env.VALOR || '1000';
+const cupom = process.env.CUPOM || '12346';
+
 // You can send different types of requests like this:
 setTimeout(() => {
     client.sendRequest(RequestType.INICIALIZA);
@@ -113,11 +117,11 @@ setTimeout(() => {
         client.sendRequest(RequestType.PROCURA);
     }, 1000);
 
-    setTimeout(() => {
+    /* setTimeout(() => {
         client.sendRequest(RequestType.CONSULTA_PDV);
-    }, 2000);
+    }, 2000);*/
 
     setTimeout(() => {
-        client.sendRequest(RequestType.TRANSACAO_DEBITO, { valor: '1000', cupom: '12345' });
+        client.sendRequest(RequestType.TRANSACAO_DEBITO, { valor: valor, cupom: cupom });
     }, 5000);
 }, 1000);

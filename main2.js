@@ -33,7 +33,7 @@ class WebSocketServer {
         this.integration.setCallBackDisplayTerminal(this.handleDisplayTerminal.bind(this));
         this.integration.setCallBackDisplayErro(this.handleDisplayError.bind(this));
         this.integration.setCallBackDisplayMensagem(this.handleDisplayMessage.bind(this));
-        this.integration.setCallBackBeep(this.handleBeep.bind(this));
+        //this.integration.setCallBackBeep(this.handleBeep.bind(this));
 
         const initResult = this.integration.InicializaDPOS();
         if (initResult !== 0) {
@@ -105,6 +105,7 @@ class WebSocketServer {
 
     handleDisplayTerminal(message) {
         this.broadcast({ type: RequestType.DISPLAY, message });
+        return null;
     }
 
     handleDisplayError(message) {
