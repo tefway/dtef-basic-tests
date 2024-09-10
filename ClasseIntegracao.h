@@ -25,8 +25,9 @@ class ClasseIntegracao {
                                                      char *pDataValidade);
     typedef int *(CALLING_COV *ptrCallBackEntraCodigoSeguranca)(
         char *pLabel, char *pEntraCodigoSeguranca, int iTamanhoMax);
-    typedef int *(CALLING_COV *ptrCallBackSelecionaOpcao)(
-        char *pLabel, char *pOpcoes, int *iOpcaoSelecionada);
+    typedef int(CALLING_COV *ptrCallBackSelecionaOpcao)(char *pLabel,
+                                                        char *pOpcoes,
+                                                        int *iOpcaoSelecionada);
     typedef int *(CALLING_COV *ptrCallBackEntraValor)(char *pLabel,
                                                       char *pValor,
                                                       char *pValorMinimo,
