@@ -1,4 +1,7 @@
 const WebSocket = require('ws');
+const readline = require('readline');
+
+const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
 // Define the RequestType enum (this should match the server-side enum)
 const RequestType = Object.freeze({
@@ -15,6 +18,7 @@ const RequestType = Object.freeze({
     ERROR: 'error',
     MESSAGE: 'message',
     BEEP: 'beep',
+    SELECIONA_OP: 'seleciona_op',
 });
 
 class WebSocketClient {
@@ -54,47 +58,55 @@ class WebSocketClient {
 
     handleResponse(response) {
         console.log('Handling response:', response);
-        switch (response.type) {
+        switch (response.requestType) {
             case RequestType.INICIALIZA:
-                console.log('Initialization result:', response.result);
+                console.log('Initialization result:', response.retn);
                 break;
             case RequestType.FINALIZA:
-                console.log('Finalization result:', response.result);
+                console.log('Finalization result:', response.retn);
                 break;
             case RequestType.VERSAO:
-                console.log('DPOS Version:', response.result);
+                console.log('DPOS Version:', response);
                 break;
             case RequestType.PROCURA:
-                console.log('PinPad Search Result:', response.result);
+                console.log('PinPad Search Result:', response);
                 break;
             case RequestType.TRANSACAO_DEBITO:
             case RequestType.TRANSACAO_CREDITO:
             case RequestType.TRANSACAO_VOUCHER:
-                console.log('Transaction Result:', response.result);
+                console.log('Transaction Result:', response);
 
                 // Example: Automatically confirm the transaction
-                this.sendRequest(RequestType.CONFIRMA, { numeroControle: response.result.numeroControle });
+                this.sendRequest(RequestType.CONFIRMA, { numeroControle: response.numeroControle });
                 break;
             case RequestType.CONFIRMA:
-                console.log('Confirm Result:', response.result);
+                console.log('Confirm Result:', response.retn);
                 break;
             case RequestType.CONSULTA_PDV:
-                console.log('PDV Search Result:', response.result);
+                console.log('PDV Search Result:', response);
                 break;
             case RequestType.DISPLAY:
-                console.log('Display Message:', response.result);
+                console.log('Display Message:', response);
                 break;
             case RequestType.ERROR:
-                console.error('Error:', response.result);
+                console.error('Error:', response);
                 break;
             case RequestType.MESSAGE:
-                console.log('Message:', response.result);
+                console.log('Message:', response);
                 break;
             case RequestType.BEEP:
                 console.log('Beep!');
                 break;
+            case RequestType.SELECIONA_OP:
+                console.log('Message:', response);
+
+                rl.question('Digite a opção desejada: ' + response.opcoes, (answer) => {
+                    this.sendRequest(RequestType.SELECIONA_OP, { op: answer });
+                });
+
+                break;
             default:
-                console.warn('Unknown response type:', response.type);
+                console.warn('Unknown response type:', response.requestType);
         }
     }
 }
@@ -107,7 +119,7 @@ const client = new WebSocketClient(url);
 
 // type the valor
 const valor = process.env.VALOR || '1000';
-const cupom = process.env.CUPOM || '12346';
+const cupom = process.env.CUPOM || '123456';
 
 // You can send different types of requests like this:
 setTimeout(() => {

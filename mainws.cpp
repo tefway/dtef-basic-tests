@@ -18,13 +18,19 @@
 #include <Poco/Windows1252Encoding.h>
 #include <atomic>
 #include <csignal>
+#include <cstdint>
+#include <cstdlib>
 #include <deque>
+#include <functional>
 #include <iostream>
 #include <mutex>
 #include <queue>
 #include <shared_mutex>
 #include <sstream>
+#include <string>
+#include <string_view>
 #include <thread>
+#include <unordered_map>
 
 using namespace Poco::Net;
 using namespace Poco;
@@ -66,19 +72,6 @@ struct Message {
 static std::queue<Message> messages;
 static std::shared_mutex messagesMtx;
 
-static auto findClient(const WebSocket &ws) {
-    std::scoped_lock<std::mutex> lck(clientsMtx);
-    auto it =
-        std::find_if(clients.begin(), clients.end(),
-                     [&ws](const Client &client) { return client.ws == ws; });
-
-    if (it == clients.end()) {
-        throw std::runtime_error("Client not found");
-    }
-
-    return it;
-}
-
 static auto findClientNotLock(const WebSocket &ws) {
     auto it =
         std::find_if(clients.begin(), clients.end(),
@@ -89,14 +82,6 @@ static auto findClientNotLock(const WebSocket &ws) {
     }
 
     return it;
-}
-
-static void broadcast(const std::string &message) {
-    for (auto &client : clients) {
-        std::scoped_lock<std::mutex> lock(client.mtx);
-        client.ws.sendFrame(message.c_str(), static_cast<int>(message.size()),
-                            WebSocket::FRAME_TEXT);
-    }
 }
 
 static auto jsonToStr(const Poco::JSON::Object::Ptr json) {
@@ -120,16 +105,26 @@ static void broadcastJson(const Poco::JSON::Object::Ptr json) {
         message = sstr.str();
     }
 
+    std::cout << "Broadcasting message: " << message << std::endl;
+
     for (auto &client : clients) {
-        std::scoped_lock<std::mutex> lock(client.mtx);
-        client.ws.sendFrame(message.c_str(), static_cast<int>(message.size()),
-                            WebSocket::FRAME_TEXT);
+        try {
+            std::scoped_lock<std::mutex> lock(client.mtx);
+            client.ws.sendFrame(message.c_str(),
+                                static_cast<int>(message.size()),
+                                WebSocket::FRAME_TEXT);
+        } catch (const Poco::Exception &e) {
+            std::cerr << "WebSocket error: " << e.displayText() << std::endl;
+        } catch (const std::exception &e) {
+            std::cerr << "Error broadcasting message: " << e.what()
+                      << std::endl;
+        }
     }
 }
 
 static auto initMessage(const std::string &type) {
     Poco::JSON::Object::Ptr obj = new Poco::JSON::Object;
-    obj->set("type", type);
+    obj->set("requestType", type);
     return obj;
 }
 
@@ -277,43 +272,146 @@ static int callback_seleciona_op(char *pLabel, char *pOpcoes,
             auto obj = Poco::JSON::Parser()
                            .parse(message.message)
                            .extract<Poco::JSON::Object::Ptr>();
+            messages.pop();
 
-            if (obj->has("type") &&
-                obj->getValue<std::string>("type") == "seleciona_op") {
+            if (obj->has("requestType") &&
+                obj->getValue<std::string>("requestType") == "seleciona_op") {
                 auto op = obj->getValue<int>("op");
                 auto retn = obj->getNullableValue<int>("retn").value(0);
-
-                messages.pop();
 
                 *iOpcaoSelecionada = op;
                 std::cout << __func__ << ": " << *iOpcaoSelecionada
                           << std::endl;
                 return retn;
-            } else {
-                messages.pop();
-                std::cout << __func__ << ": "
-                          << "Invalid message: " << message.message
-                          << std::endl;
-
-                std::scoped_lock<std::mutex> lck(clientsMtx);
-
-                auto cli = findClientNotLock(message.ws);
-                std::scoped_lock<std::mutex> lck2(cli->mtx);
-
-                auto msgToCli = jsonToStr(msg);
-                cli->ws.sendFrame(msgToCli.c_str(),
-                                  static_cast<int>(msgToCli.size()),
-                                  WebSocket::FRAME_TEXT);
             }
+
+            std::cout << __func__ << ": "
+                      << "Invalid message: " << message.message << std::endl;
+
+            std::scoped_lock<std::mutex> lck(clientsMtx);
+
+            auto cli = findClientNotLock(message.ws);
+            std::scoped_lock<std::mutex> lck2(cli->mtx);
+
+            auto msgToCli = jsonToStr(msg);
+            cli->ws.sendFrame(msgToCli.c_str(),
+                              static_cast<int>(msgToCli.size()),
+                              WebSocket::FRAME_TEXT);
         } catch (const std::exception &e) {
             std::cerr << "Error parsing message: " << e.what() << ": "
                       << message.message << std::endl;
+
+            if (!messages.empty()) {
+                messages.pop();
+            }
         }
 
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
     return 0;
+}
+
+static void messageCredito(const Poco::JSON::Object::Ptr &obj) {
+    auto valor = obj->getValue<std::string>("valor");
+    auto cupom = obj->getValue<std::string>("cupom");
+
+    char buffControle[128]{};
+
+    auto retn =
+        integ.TransacaoCartaoCredito(valor.data(), cupom.data(), buffControle);
+
+    auto msgToCli = initMessage("transacaoCredito");
+    msgToCli->set("retn", retn);
+    msgToCli->set("numeroControle", std::string(buffControle));
+
+    broadcastJson(msgToCli);
+}
+
+static void messageDebito(const Poco::JSON::Object::Ptr &obj) {
+    auto valor = obj->getValue<std::string>("valor");
+    auto cupom = obj->getValue<std::string>("cupom");
+
+    char buffControle[128]{};
+
+    auto retn =
+        integ.TransacaoCartaoDebito(valor.data(), cupom.data(), buffControle);
+
+    auto msgToCli = initMessage("transacaoDebito");
+    msgToCli->set("retn", retn);
+    msgToCli->set("numeroControle", std::string(buffControle));
+
+    broadcastJson(msgToCli);
+}
+
+static void messageVoucher(const Poco::JSON::Object::Ptr &obj) {
+    auto valor = obj->getValue<std::string>("valor");
+    auto cupom = obj->getValue<std::string>("cupom");
+
+    char buffControle[128]{};
+
+    auto retn =
+        integ.TransacaoCartaoVoucher(valor.data(), cupom.data(), buffControle);
+
+    auto msgToCli = initMessage("transacaoVoucher");
+    msgToCli->set("retn", retn);
+    msgToCli->set("numeroControle", std::string(buffControle));
+
+    broadcastJson(msgToCli);
+}
+
+static void messageConfirma(const Poco::JSON::Object::Ptr &obj) {
+    auto numeroControle = obj->getValue<std::string>("numeroControle");
+
+    auto retn = integ.ConfirmaCartao(numeroControle.data());
+
+    auto msgToCli = initMessage("confirma");
+    msgToCli->set("retn", retn);
+
+    broadcastJson(msgToCli);
+}
+
+static void messageProcuraPinPad(const Poco::JSON::Object::Ptr &obj) {
+    char buffer[1024]{};
+    auto retn = integ.ProcuraPinPad(buffer);
+
+    auto str = convertTextToUTF8(buffer);
+
+    auto msgToCli = initMessage("procura");
+    msgToCli->set("retn", retn);
+    msgToCli->set("dados", str);
+
+    broadcastJson(msgToCli);
+}
+
+static void messageVersao(const Poco::JSON::Object::Ptr &obj) {
+    char buffer[1024]{};
+    integ.VersaoDPOS(buffer);
+
+    auto str = convertTextToUTF8(buffer);
+
+    auto msgToCli = initMessage("versao");
+    msgToCli->set("versao", str);
+
+    broadcastJson(msgToCli);
+}
+
+static void messageInicializa(const Poco::JSON::Object::Ptr &obj) {
+    int retn = integ.InicializaDPOS();
+
+    auto msgToCli = initMessage("inicializa");
+    msgToCli->set("retn", retn);
+
+    broadcastJson(msgToCli);
+}
+
+static void messageFinaliza(const Poco::JSON::Object::Ptr &obj) {
+    int retn = integ.FinalizaDPOS();
+
+    auto msgToCli = initMessage("finaliza");
+    msgToCli->set("retn", retn);
+
+    broadcastJson(msgToCli);
 }
 
 static void processMessages() {
@@ -329,41 +427,37 @@ static void processMessages() {
         return;
     }
 
+    std::unordered_map<std::string,
+                       std::function<void(const Poco::JSON::Object::Ptr &obj)>>
+        messageTypes{{"transacaoCredito", messageCredito},
+                     {"transacaoDebito", messageDebito},
+                     {"transacaoVoucher", messageVoucher},
+                     {"confirma", messageConfirma},
+                     {"procura", messageProcuraPinPad},
+                     {"versao", messageVersao},
+                     {"inicializa", messageInicializa},
+                     {"finaliza", messageFinaliza}};
+
     try {
         auto obj = Poco::JSON::Parser()
                        .parse(message.message)
                        .extract<Poco::JSON::Object::Ptr>();
-        if (obj->has("type")) {
-            auto type = obj->getValue<std::string>("type");
+        if (obj->has("requestType")) {
+            auto type = obj->getValue<std::string>("requestType");
 
-            if (type == "transacaoDebito") {
+            if (messageTypes.find(type) != messageTypes.end()) {
                 messages.pop();
                 lock.unlock();
-                auto valor = obj->getValue<std::string>("valor");
-                auto cupom = obj->getValue<std::string>("cupom");
 
-                char buffControle[128]{};
-
-                auto retn = integ.TransacaoCartaoDebito(
-                    valor.data(), cupom.data(), buffControle);
-
-                auto msgToCli = initMessage("transacaoDebito");
-                msgToCli->set("retn", retn);
-                msgToCli->set("numeroControle", std::string(buffControle));
-
-                broadcastJson(msgToCli);
-            } else if (type == "confirma") {
-                messages.pop();
-                lock.unlock();
-                auto numeroControle =
-                    obj->getValue<std::string>("numeroControle");
-
-                auto retn = integ.ConfirmaCartao(numeroControle.data());
-
-                auto msgToCli = initMessage("confirma");
-                msgToCli->set("retn", retn);
-
-                broadcastJson(msgToCli);
+                try {
+                    messageTypes[type](obj);
+                } catch (const Poco::Exception &e) {
+                    std::cerr << "Error processing message: " << e.displayText()
+                              << std::endl;
+                } catch (const std::exception &e) {
+                    std::cerr << "Error processing message: " << e.what()
+                              << std::endl;
+                }
             } else {
                 std::cerr << "Invalid message type: " << type << std::endl;
                 return;
@@ -394,12 +488,6 @@ static void processMessages() {
     }
 
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
-}
-
-static void runMessages() {
-    while (!stop.load()) {
-        processMessages();
-    }
 }
 
 static void pushMessage(std::string message, WebSocket &ws) {
@@ -509,6 +597,15 @@ static void signal_callback_handler(int signum) {
     stop.store(true);
 }
 
+static auto getenvor(const char *name, const char *def = "") -> std::string {
+    auto env = std::getenv(name);
+    if (env == nullptr) {
+        return def;
+    }
+
+    return env;
+}
+
 int main() {
     signal(SIGINT, signal_callback_handler);
     signal(SIGTERM, signal_callback_handler);
@@ -520,14 +617,16 @@ int main() {
     integ.setCallBackBeep(callback_beep);
     integ.setCallBackSelecionaOpcao(callback_seleciona_op);
 
+    uint16_t port = static_cast<uint16_t>(std::stoul(getenvor("PORT", "9000")));
+
     try {
         // Set up HTTP server to handle WebSocket requests
-        ServerSocket svs(9000); // Listen on port 9000
+        ServerSocket svs(port);
         HTTPServer server(new WebSocketRequestHandlerFactory, svs,
                           new HTTPServerParams);
 
         server.start(); // Start the server
-        std::cout << "WebSocket server started on port 9000" << std::endl;
+        std::cout << "WebSocket server started on port " << port << std::endl;
 
         // Keep the server running
         while (!stop.load()) {
