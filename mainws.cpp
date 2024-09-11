@@ -620,6 +620,17 @@ class WebSocketRequestHandler : public HTTPRequestHandler {
 
             pushSocket(ws);
 
+            CallOnDtor cod([&]() {
+                rmSocket(ws);
+
+                try {
+                    ws.close();
+                } catch (const Poco::Exception &e) {
+                    std::cerr << "WebSocket error: " << e.displayText()
+                              << std::endl;
+                }
+            });
+
             Poco::Buffer<char> data(1024); // Buffer to store received data
             std::cout << "WebSocket connection established" << std::endl;
 
@@ -632,8 +643,6 @@ class WebSocketRequestHandler : public HTTPRequestHandler {
 
                 if (flags & WebSocket::FRAME_OP_CLOSE) {
                     std::cout << "WebSocket connection closed" << std::endl;
-                    rmSocket(ws);
-                    ws.close();
                     break;
                 }
 
@@ -646,7 +655,6 @@ class WebSocketRequestHandler : public HTTPRequestHandler {
 
             if (stop) {
                 ws.sendFrame("", 0, WebSocket::FRAME_OP_CLOSE);
-                ws.close();
             }
         } catch (const Poco::Exception &e) {
             std::cerr << "WebSocket error: " << e.displayText() << std::endl;

@@ -54,6 +54,9 @@ class WebSocketClient {
 
     sendRequest(requestType, payload = {}) {
         const request = { requestType, ...payload };
+
+        request.message_ident = Math.floor(Math.random() * 1000);
+
         console.log('Sending request:', request);
         this.ws.send(JSON.stringify(request));
     }
