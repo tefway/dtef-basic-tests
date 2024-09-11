@@ -13,8 +13,10 @@ const RequestType = Object.freeze({
     TRANSACAO_CREDITO: 'transacaoCredito',
     TRANSACAO_VOUCHER: 'transacaoVoucher',
     CONFIRMA: 'confirma',
+    DESFAZ: 'desfaz',
     CONSULTA_PDV: 'consultaPDV',
     DISPLAY: 'display',
+    MENSAGEM_TERMINAL: 'terminal',
     ERROR: 'error',
     MESSAGE: 'message',
     BEEP: 'beep',
@@ -94,6 +96,9 @@ class WebSocketClient {
             case RequestType.MESSAGE:
                 console.log('Message:', response);
                 break;
+            case RequestType.MENSAGEM_TERMINAL:
+                console.log('Terminal:', response);
+                break;
             case RequestType.BEEP:
                 console.log('Beep!');
                 break;
@@ -108,6 +113,18 @@ class WebSocketClient {
             default:
                 console.warn('Unknown response type:', response.requestType);
         }
+    }
+
+    confirma(numeroControle) {
+        this.sendRequest(RequestType.CONFIRMA, { numeroControle });
+    }
+
+    desfaz(numeroControle) {
+        this.sendRequest(RequestType.DESFAZ, { numeroControle });
+    }
+
+    finaliza() {
+        this.sendRequest(RequestType.FINALIZA);
     }
 }
 

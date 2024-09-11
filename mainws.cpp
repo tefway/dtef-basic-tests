@@ -232,6 +232,76 @@ static void *CALLING_COV callback_beep() {
 
 static std::atomic<bool> sel_op_aguardando = false;
 
+template <class StrType = std::string>
+static auto split(std::string_view strview, std::string_view term)
+    -> std::vector<StrType> {
+    size_t current = 0;
+    std::vector<StrType> result;
+
+    if (strview.empty()) {
+        return result;
+    }
+
+    if (term.empty()) {
+        result.emplace_back(strview);
+        return result;
+    }
+
+    do {
+        auto sep = strview.find(term, current);
+
+        result.emplace_back(strview.substr(
+            current, (sep == std::string_view::npos) ? sep : (sep - current)));
+
+        if (sep == std::string_view::npos) {
+            break;
+        }
+
+        current = sep + term.size();
+    } while (current < strview.size());
+
+    return result;
+}
+
+static auto parseOpcoes(const std::string &opcoes) {
+    /**
+     * opcoes (1,"1-A VISTA")#(2,"2-CDC")
+     */
+
+    Poco::JSON::Array::Ptr arr = new Poco::JSON::Array;
+
+    auto listaOpcs = split<std::string_view>(opcoes, "#");
+
+    for (auto op : listaOpcs) {
+        if (op.size() < 5) {
+            continue;
+        }
+
+        // skip ( and )
+        if (op.front() == '(') {
+            op.remove_prefix(1);
+        }
+
+        if (op.back() == ')') {
+            op.remove_suffix(1);
+        }
+
+        auto keyval = split(op, ",");
+        if (keyval.size() != 2) {
+            std::cerr << "Invalid opcao: " << op << std::endl;
+            continue;
+        }
+
+        Poco::JSON::Object::Ptr opcao = new Poco::JSON::Object;
+        opcao->set("op", std::stoi(keyval[0]));
+        opcao->set("desc", std::string(keyval[1]));
+
+        arr->add(opcao);
+    }
+
+    return arr;
+}
+
 static int callback_seleciona_op(char *pLabel, char *pOpcoes,
                                  int *iOpcaoSelecionada) {
     auto label = convertTextToUTF8(pLabel);
@@ -246,7 +316,13 @@ static int callback_seleciona_op(char *pLabel, char *pOpcoes,
 
     auto msg = initMessage("seleciona_op");
     msg->set("label", label);
-    msg->set("opcoes", opcoes);
+    msg->set("opcoes_raw", opcoes);
+    try {
+        msg->set("opcoes", parseOpcoes(opcoes));
+    } catch (const std::exception &e) {
+        std::cerr << "Error parsing opcoes: " << e.what() << " " << opcoes
+                  << std::endl;
+    }
 
     broadcastJson(msg);
 
@@ -321,7 +397,7 @@ static void messageCredito(const Poco::JSON::Object::Ptr &obj) {
     auto retn =
         integ.TransacaoCartaoCredito(valor.data(), cupom.data(), buffControle);
 
-    auto msgToCli = initMessage("transacaoCredito");
+    auto msgToCli = obj;
     msgToCli->set("retn", retn);
     msgToCli->set("numeroControle", std::string(buffControle));
 
@@ -337,7 +413,7 @@ static void messageDebito(const Poco::JSON::Object::Ptr &obj) {
     auto retn =
         integ.TransacaoCartaoDebito(valor.data(), cupom.data(), buffControle);
 
-    auto msgToCli = initMessage("transacaoDebito");
+    auto msgToCli = obj;
     msgToCli->set("retn", retn);
     msgToCli->set("numeroControle", std::string(buffControle));
 
@@ -353,7 +429,7 @@ static void messageVoucher(const Poco::JSON::Object::Ptr &obj) {
     auto retn =
         integ.TransacaoCartaoVoucher(valor.data(), cupom.data(), buffControle);
 
-    auto msgToCli = initMessage("transacaoVoucher");
+    auto msgToCli = obj;
     msgToCli->set("retn", retn);
     msgToCli->set("numeroControle", std::string(buffControle));
 
@@ -365,7 +441,18 @@ static void messageConfirma(const Poco::JSON::Object::Ptr &obj) {
 
     auto retn = integ.ConfirmaCartao(numeroControle.data());
 
-    auto msgToCli = initMessage("confirma");
+    auto msgToCli = obj;
+    msgToCli->set("retn", retn);
+
+    broadcastJson(msgToCli);
+}
+
+static void messageDesfaz(const Poco::JSON::Object::Ptr &obj) {
+    auto numeroControle = obj->getValue<std::string>("numeroControle");
+
+    auto retn = integ.DesfazCartao(numeroControle.data());
+
+    auto msgToCli = obj;
     msgToCli->set("retn", retn);
 
     broadcastJson(msgToCli);
@@ -377,7 +464,7 @@ static void messageProcuraPinPad(const Poco::JSON::Object::Ptr &obj) {
 
     auto str = convertTextToUTF8(buffer);
 
-    auto msgToCli = initMessage("procura");
+    auto msgToCli = obj;
     msgToCli->set("retn", retn);
     msgToCli->set("dados", str);
 
@@ -390,7 +477,7 @@ static void messageVersao(const Poco::JSON::Object::Ptr &obj) {
 
     auto str = convertTextToUTF8(buffer);
 
-    auto msgToCli = initMessage("versao");
+    auto msgToCli = obj;
     msgToCli->set("versao", str);
 
     broadcastJson(msgToCli);
@@ -399,7 +486,7 @@ static void messageVersao(const Poco::JSON::Object::Ptr &obj) {
 static void messageInicializa(const Poco::JSON::Object::Ptr &obj) {
     int retn = integ.InicializaDPOS();
 
-    auto msgToCli = initMessage("inicializa");
+    auto msgToCli = obj;
     msgToCli->set("retn", retn);
 
     broadcastJson(msgToCli);
@@ -408,7 +495,7 @@ static void messageInicializa(const Poco::JSON::Object::Ptr &obj) {
 static void messageFinaliza(const Poco::JSON::Object::Ptr &obj) {
     int retn = integ.FinalizaDPOS();
 
-    auto msgToCli = initMessage("finaliza");
+    auto msgToCli = obj;
     msgToCli->set("retn", retn);
 
     broadcastJson(msgToCli);
@@ -433,6 +520,7 @@ static void processMessages() {
                      {"transacaoDebito", messageDebito},
                      {"transacaoVoucher", messageVoucher},
                      {"confirma", messageConfirma},
+                     {"desfaz", messageDesfaz},
                      {"procura", messageProcuraPinPad},
                      {"versao", messageVersao},
                      {"inicializa", messageInicializa},
