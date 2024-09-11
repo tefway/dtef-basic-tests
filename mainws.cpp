@@ -758,6 +758,8 @@ int main() {
             processMessages();
             Thread::sleep(500);
         }
+
+        server.stopAll();
     } catch (Poco::Exception &exc) {
         std::cerr << "Server error: " << exc.displayText() << std::endl;
     }
