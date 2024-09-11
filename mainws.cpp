@@ -31,6 +31,7 @@
 #include <string_view>
 #include <thread>
 #include <unordered_map>
+#include <vector>
 
 using namespace Poco::Net;
 using namespace Poco;
@@ -107,6 +108,10 @@ static void broadcastJson(const Poco::JSON::Object::Ptr json) {
 
     std::cout << "Broadcasting message: " << message << std::endl;
 
+    std::scoped_lock<std::mutex> lck(clientsMtx);
+
+    std::vector<WebSocket> toRemove;
+
     for (auto &client : clients) {
         try {
             std::scoped_lock<std::mutex> lock(client.mtx);
@@ -114,10 +119,31 @@ static void broadcastJson(const Poco::JSON::Object::Ptr json) {
                                 static_cast<int>(message.size()),
                                 WebSocket::FRAME_TEXT);
         } catch (const Poco::Exception &e) {
-            std::cerr << "WebSocket error: " << e.displayText() << std::endl;
+            std::cerr << __func__ << ": WebSocket error: " << e.displayText()
+                      << std::endl;
+            try {
+                toRemove.emplace_back(client.ws);
+            } catch (const Poco::Exception &e) {
+                std::cerr << __func__
+                          << ": WebSocket error: " << e.displayText()
+                          << std::endl;
+            } catch (const std::exception &e) {
+                std::cerr << __func__ << ": " << e.what() << std::endl;
+            }
         } catch (const std::exception &e) {
             std::cerr << "Error broadcasting message: " << e.what()
                       << std::endl;
+        }
+    }
+
+    for (auto &ws : toRemove) {
+        auto it = std::find_if(
+            clients.begin(), clients.end(),
+            [&ws](const Client &client) { return client.ws == ws; });
+
+        if (it != clients.end()) {
+            std::cout << "Removing client" << std::endl;
+            clients.erase(it);
         }
     }
 }
@@ -568,7 +594,8 @@ static void processMessages() {
             return;
         }
     } catch (const std::exception &e) {
-        std::cerr << "Error broadcasting message: " << e.what() << std::endl;
+        std::cerr << __func__ << ": Error broadcasting message: " << e.what()
+                  << std::endl;
 
         if (lock.owns_lock() && !messages.empty()) {
             messages.pop();
@@ -590,7 +617,8 @@ static void broadcastAndClose() {
             client.ws.sendFrame("", 0, WebSocket::FRAME_OP_CLOSE);
             client.ws.close();
         } catch (const Poco::Exception &e) {
-            std::cerr << "WebSocket error: " << e.displayText() << std::endl;
+            std::cerr << __func__ << ": WebSocket error: " << e.displayText()
+                      << std::endl;
         }
     }
 }
@@ -657,7 +685,8 @@ class WebSocketRequestHandler : public HTTPRequestHandler {
                 ws.sendFrame("", 0, WebSocket::FRAME_OP_CLOSE);
             }
         } catch (const Poco::Exception &e) {
-            std::cerr << "WebSocket error: " << e.displayText() << std::endl;
+            std::cerr << __func__ << ": WebSocket error: " << e.displayText()
+                      << std::endl;
         }
     }
 
