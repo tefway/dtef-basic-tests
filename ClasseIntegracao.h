@@ -16,55 +16,55 @@ class ClasseIntegracao {
     typedef void *(CALLING_COV *ptrCallBackDisplayErro)(char *pMensagem);
     typedef void *(CALLING_COV *ptrCallBackMensagem)(char *pMensagem);
     typedef void *(CALLING_COV *ptrCallBackBeep)(void);
-    typedef int *(CALLING_COV *ptrCallBackSolicitaConfirmacao)(char *pMensagem);
-    typedef int *(CALLING_COV *ptrCallBackEntraCartao)(char *pLabel,
-                                                       char *pCartao);
-    typedef int *(CALLING_COV *ptrCallBackEntraDataValidade)(
-        char *pLabel, char *pDataValidade);
-    typedef int *(CALLING_COV *ptrCallBackEntraData)(char *pLabel,
-                                                     char *pDataValidade);
-    typedef int *(CALLING_COV *ptrCallBackEntraCodigoSeguranca)(
+    typedef int(CALLING_COV *ptrCallBackSolicitaConfirmacao)(char *pMensagem);
+    typedef int(CALLING_COV *ptrCallBackEntraCartao)(char *pLabel,
+                                                     char *pCartao);
+    typedef int(CALLING_COV *ptrCallBackEntraDataValidade)(char *pLabel,
+                                                           char *pDataValidade);
+    typedef int(CALLING_COV *ptrCallBackEntraData)(char *pLabel,
+                                                   char *pDataValidade);
+    typedef int(CALLING_COV *ptrCallBackEntraCodigoSeguranca)(
         char *pLabel, char *pEntraCodigoSeguranca, int iTamanhoMax);
     typedef int(CALLING_COV *ptrCallBackSelecionaOpcao)(char *pLabel,
                                                         char *pOpcoes,
                                                         int *iOpcaoSelecionada);
-    typedef int *(CALLING_COV *ptrCallBackEntraValor)(char *pLabel,
-                                                      char *pValor,
-                                                      char *pValorMinimo,
-                                                      char *pValorMaximo);
-    typedef int *(CALLING_COV *ptrCallBackEntraValorEspecial)(
-        char *pLabel, char *pValor, char *pParametros);
-    typedef int *(CALLING_COV *ptrCallBackEntraNumero)(
+    typedef int(CALLING_COV *ptrCallBackEntraValor)(char *pLabel, char *pValor,
+                                                    char *pValorMinimo,
+                                                    char *pValorMaximo);
+    typedef int(CALLING_COV *ptrCallBackEntraValorEspecial)(char *pLabel,
+                                                            char *pValor,
+                                                            char *pParametros);
+    typedef int(CALLING_COV *ptrCallBackEntraNumero)(
         char *pLabel, char *pNumero, char *pNumeroMinimo, char *pNumeroMaximo,
         int iMininoDigitos, int iMaximoDigitos, int iDigitosExatos);
-    typedef int *(CALLING_COV *ptrCallBackOperacaoCancelada)(void);
-    typedef int *(CALLING_COV *ptrCallBackSetaOperacaoCancelada)(
-        bool bCancelada);
+    typedef int(CALLING_COV *ptrCallBackOperacaoCancelada)(void);
+    typedef int(CALLING_COV *ptrCallBackSetaOperacaoCancelada)(bool bCancelada);
     typedef void *(CALLING_COV *ptrCallBackProcessaMensagens)(void);
-    typedef int *(CALLING_COV *ptrCallBackEntraString)(char *pLabel,
-                                                       char *pString,
-                                                       char *pTamanhoMaximo);
-    typedef int *(CALLING_COV *ptrCallBackConsultaAVS)(
-        char *cEndereco, char *cNumero, char *cApto, char *cBloco, char *cCEP,
-        char *cBairro, char *cCPF);
-    typedef int *(CALLING_COV *ptrCallBackMensagemAdicional)(
+    typedef int(CALLING_COV *ptrCallBackEntraString)(char *pLabel,
+                                                     char *pString,
+                                                     char *pTamanhoMaximo);
+    typedef int(CALLING_COV *ptrCallBackConsultaAVS)(char *cEndereco,
+                                                     char *cNumero, char *cApto,
+                                                     char *cBloco, char *cCEP,
+                                                     char *cBairro, char *cCPF);
+    typedef int(CALLING_COV *ptrCallBackMensagemAdicional)(
         char *pMensagemAdicional);
-    typedef int *(CALLING_COV *ptrCallBackImagemAdicional)(int *pIndiceImagem);
-    typedef int *(CALLING_COV *ptrCallBackEntraCodigoBarras)(char *Label,
-                                                             char *Campo);
-    typedef int *(CALLING_COV *ptrCallBackEntraCodigoBarrasLido)(char *Label,
-                                                                 char *Campo);
+    typedef int(CALLING_COV *ptrCallBackImagemAdicional)(int *pIndiceImagem);
+    typedef int(CALLING_COV *ptrCallBackEntraCodigoBarras)(char *Label,
+                                                           char *Campo);
+    typedef int(CALLING_COV *ptrCallBackEntraCodigoBarrasLido)(char *Label,
+                                                               char *Campo);
     typedef void *(CALLING_COV *ptrCallBackMensagemAlerta)(
         char *pMensagemAlerta);
     typedef void *(CALLING_COV *ptrCallBackPreviewComprovante)(
         char *cComprovante);
-    typedef int *(CALLING_COV *ptrCallBackSelecionaPlanos)(
+    typedef int(CALLING_COV *ptrCallBackSelecionaPlanos)(
         int iCodigoRede, int iCodigoTransacao, int iTipoFinanciamento,
         int iMaximoParcelas, char *pValorMinimoParcela, int iMaxDiasPreDatado,
         char *pNumeroParcelas, char *pValorTransacao, char *pValorParcela,
         char *pValorEntrada, char *pData);
-    typedef int *(CALLING_COV *ptrCallBackSelecionaPlanosEx)(char *sSolicitacao,
-                                                             char *sRetorno);
+    typedef int(CALLING_COV *ptrCallBackSelecionaPlanosEx)(char *sSolicitacao,
+                                                           char *sRetorno);
 
     typedef void(CALLING_COV *pCallBackDisplayTerminal)(char *pMensagem);
     typedef void(CALLING_COV *pCallBackDisplayErro)(char *pMensagem);

@@ -248,12 +248,47 @@ static void *CALLING_COV display_terminal(char *msg) {
     return msg;
 }
 
+static void *CALLING_COV mensagem_alerta(char *msg) {
+    auto msgUtf8 = convertTextToUTF8(msg);
+    std::cout << __func__ << ": " << msgUtf8 << std::endl;
+    auto msgToCli = initMessage("mensagemAlerta");
+
+    msgToCli->set("message", msgUtf8);
+
+    broadcastJson(msgToCli);
+    return msg;
+}
+
+static int CALLING_COV mensagem_adicional(char *msg) {
+    auto msgUtf8 = convertTextToUTF8(msg);
+    std::cout << __func__ << ": " << msgUtf8 << std::endl;
+    auto msgToCli = initMessage("mensagemAdicional");
+
+    msgToCli->set("message", msgUtf8);
+
+    broadcastJson(msgToCli);
+    return 0;
+}
+
 static void *CALLING_COV callback_beep() {
     std::cout << __func__ << std::endl;
     auto msgToCli = initMessage("beep");
 
     broadcastJson(msgToCli);
     return nullptr;
+}
+
+static std::atomic<bool> operacaoCancelada = false;
+
+static int CALLING_COV operacao_cancelada() {
+    std::cout << __func__ << std::endl;
+    return operacaoCancelada ? 1 : 0;
+}
+
+static int CALLING_COV seta_operacao_cancelada(bool bCancelada) {
+    std::cout << __func__ << ": " << bCancelada << std::endl;
+    operacaoCancelada = bCancelada;
+    return 0;
 }
 
 static std::atomic<bool> sel_op_aguardando = false;
@@ -326,6 +361,16 @@ static auto parseOpcoes(const std::string &opcoes) {
     }
 
     return arr;
+}
+
+static void *CALLING_COV callBackPreviewComprovante(char *pComprovante) {
+    auto comprovante = convertTextToUTF8(pComprovante);
+
+    auto msgToCli = initMessage("previewComprovante");
+    msgToCli->set("comprovante", comprovante);
+
+    broadcastJson(msgToCli);
+    return nullptr;
 }
 
 static int callback_seleciona_op(char *pLabel, char *pOpcoes,
@@ -527,6 +572,34 @@ static void messageFinaliza(const Poco::JSON::Object::Ptr &obj) {
     broadcastJson(msgToCli);
 }
 
+static void messageObtemComprovante(const Poco::JSON::Object::Ptr &obj) {
+    auto numeroControle = obj->getValue<std::string>("numeroControle");
+    char comprovanteBuffer[1024]{};
+    char comprovanteReduzido[1024]{};
+
+    integ.ObtemComprovanteTransacao(numeroControle.data(), comprovanteBuffer,
+                                    comprovanteReduzido);
+
+    auto comprovante = convertTextToUTF8(comprovanteBuffer);
+    auto comprovanteRed = convertTextToUTF8(comprovanteReduzido);
+
+    auto msgToCli = obj;
+    msgToCli->set("retn", 0);
+    msgToCli->set("comprovante", comprovante);
+    msgToCli->set("comprovanteReduzido", comprovanteRed);
+
+    broadcastJson(msgToCli);
+}
+
+static void messageCancelaOperacao(const Poco::JSON::Object::Ptr &obj) {
+    operacaoCancelada = true;
+
+    auto msgToCli = obj;
+    msgToCli->set("retn", operacaoCancelada.load());
+
+    broadcastJson(msgToCli);
+}
+
 static void processMessages() {
     std::unique_lock<std::shared_mutex> lock(messagesMtx);
     if (messages.empty()) {
@@ -550,7 +623,9 @@ static void processMessages() {
                      {"procura", messageProcuraPinPad},
                      {"versao", messageVersao},
                      {"inicializa", messageInicializa},
-                     {"finaliza", messageFinaliza}};
+                     {"finaliza", messageFinaliza},
+                     {"obtemComprovante", messageObtemComprovante},
+                     {"cancelaOperacao", messageCancelaOperacao}};
 
     try {
         auto obj = Poco::JSON::Parser()
@@ -611,6 +686,7 @@ static void pushMessage(std::string message, WebSocket &ws) {
 }
 
 static void broadcastAndClose() {
+    std::scoped_lock<std::mutex> lck(clientsMtx);
     for (auto &client : clients) {
         std::scoped_lock<std::mutex> lock(client.mtx);
         try {
@@ -741,6 +817,11 @@ int main() {
     integ.setCallBackDisplayTerminal(display_terminal);
     integ.setCallBackBeep(callback_beep);
     integ.setCallBackSelecionaOpcao(callback_seleciona_op);
+    integ.setCallBackMensagemAlerta(mensagem_alerta);
+    integ.setCallBackMensagemAdicional(mensagem_adicional);
+    integ.setCallBackPreviewComprovante(callBackPreviewComprovante);
+    integ.setCallBackOperacaoCancelada(operacao_cancelada);
+    integ.setCallBackSetaOperacaoCancelada(seta_operacao_cancelada);
 
     uint16_t port = static_cast<uint16_t>(std::stoul(getenvor("PORT", "9000")));
 
@@ -759,6 +840,7 @@ int main() {
             Thread::sleep(500);
         }
 
+        broadcastAndClose();
         server.stopAll();
     } catch (Poco::Exception &exc) {
         std::cerr << "Server error: " << exc.displayText() << std::endl;
