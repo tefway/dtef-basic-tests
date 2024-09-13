@@ -21,6 +21,12 @@ const RequestType = Object.freeze({
     MESSAGE: 'message',
     BEEP: 'beep',
     SELECIONA_OP: 'seleciona_op',
+    OBTEM_COMPROVANTE: 'obtemComprovante',
+    CANCELA_OPERACAO: 'cancelaOperacao',
+    MENSAGEM_ALERTA: 'mensagemAlerta',
+    MENSAGEM_ADICIONAL: 'mensagemAdicional',
+    PREVIEW_COMPROVANTE: 'previewComprovante',
+    CANCELAMENTO_PAGAMENTO: 'cancelamentoPagamento',
 });
 
 class WebSocketClient {
@@ -102,6 +108,9 @@ class WebSocketClient {
             case RequestType.MENSAGEM_TERMINAL:
                 console.log('Terminal:', response);
                 break;
+            case RequestType.MENSAGEM_ALERTA:
+                console.log('Alerta:', response);
+                break;
             case RequestType.BEEP:
                 console.log('Beep!');
                 break;
@@ -116,6 +125,10 @@ class WebSocketClient {
             default:
                 console.warn('Unknown response type:', response.requestType);
         }
+    }
+
+    cancelamentoPagamento(numeroControle) {
+        this.sendRequest(RequestType.CANCELAMENTO_PAGAMENTO, { numeroControle });
     }
 
     confirma(numeroControle) {
