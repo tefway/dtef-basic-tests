@@ -152,26 +152,27 @@ void broadcastJson(const Poco::JSON::Object::Ptr json) {
 namespace {
 namespace MessageTypes {
 
-std::string TRANSACAO_CREDITO = "transacaoCredito";
-std::string TRANSACAO_DEBITO = "transacaoDebito";
-std::string TRANSACAO_VOUCHER = "transacaoVoucher";
-std::string CONFIRMA = "confirma";
-std::string DESFAZ = "desfaz";
-std::string PROCURA = "procura";
-std::string VERSAO = "versao";
-std::string INICIALIZA = "inicializa";
-std::string FINALIZA = "finaliza";
-std::string OBTEM_COMPROVANTE = "obtemComprovante";
-std::string CANCELA_OPERACAO = "cancelaOperacao";
-std::string ERROR = "error";
-std::string MESSAGE = "message";
-std::string TERMINAL = "terminal";
-std::string MENSAGEM_ALERTA = "mensagemAlerta";
-std::string MENSAGEM_ADICIONAL = "mensagemAdicional";
-std::string BEEP = "beep";
-std::string PREVIEW_COMPROVANTE = "previewComprovante";
-std::string SELECIONA_OP = "seleciona_op";
-std::string CANCELAMENTO_PAGAMENTO = "cancelamentoPagamento";
+const std::string TRANSACAO_CREDITO = "transacaoCredito";
+const std::string TRANSACAO_DEBITO = "transacaoDebito";
+const std::string TRANSACAO_VOUCHER = "transacaoVoucher";
+const std::string CONFIRMA = "confirma";
+const std::string DESFAZ = "desfaz";
+const std::string PROCURA = "procura";
+const std::string VERSAO = "versao";
+const std::string INICIALIZA = "inicializa";
+const std::string FINALIZA = "finaliza";
+const std::string OBTEM_COMPROVANTE = "obtemComprovante";
+const std::string CANCELA_OPERACAO = "cancelaOperacao";
+const std::string ERROR = "error";
+const std::string MESSAGE = "message";
+const std::string TERMINAL = "terminal";
+const std::string MENSAGEM_ALERTA = "mensagemAlerta";
+const std::string MENSAGEM_ADICIONAL = "mensagemAdicional";
+const std::string BEEP = "beep";
+const std::string PREVIEW_COMPROVANTE = "previewComprovante";
+const std::string SELECIONA_OP = "seleciona_op";
+const std::string CANCELAMENTO_PAGAMENTO = "cancelamentoPagamento";
+const std::string SOLICITA_CONFIRMACAO = "solicitaConfirmacao";
 
 } // namespace MessageTypes
 } // namespace
@@ -196,7 +197,7 @@ auto convertTextToUTF8(std::string_view text) {
 
     bool isValid = true;
 
-    for (auto it = text.begin(); it != text.end(); ++it) {
+    for (auto it = text.begin(); it != text.end(); /**/) {
         int le =
             utf8.sequenceLength(reinterpret_cast<const unsigned char *>(&*it),
                                 static_cast<int>(text.end() - it));
@@ -209,6 +210,8 @@ auto convertTextToUTF8(std::string_view text) {
         if (!utf8.isLegal(reinterpret_cast<const unsigned char *>(&*it), le)) {
             isValid = false;
         }
+
+        it += le;
     }
 
     if (isValid) {
@@ -290,9 +293,62 @@ void *CALLING_COV callback_beep() {
 
 std::atomic<bool> operacaoCancelada = false;
 
+void messageCancelaOperacao(const Poco::JSON::Object::Ptr &obj) {
+    operacaoCancelada = true;
+
+    auto msgToCli = obj;
+    msgToCli->set("retn", operacaoCancelada.load());
+
+    broadcastJson(msgToCli);
+}
+
+void checkOperacaoCancelada() {
+    if (stop.load()) {
+        operacaoCancelada = true;
+        return;
+    }
+
+    std::unique_lock<std::shared_mutex> lock(messagesMtx);
+
+    if (messages.empty()) {
+        lock.unlock();
+        return;
+    }
+
+    auto message = messages.front();
+
+    std::cout << "Received message: " << message.message << std::endl;
+
+    if (message.message == "stop") {
+        stop.store(true);
+        operacaoCancelada = true;
+        return;
+    }
+
+    try {
+        auto obj = Poco::JSON::Parser()
+                       .parse(message.message)
+                       .extract<Poco::JSON::Object::Ptr>();
+        messages.pop();
+        lock.unlock();
+
+        if (obj->has("requestType") &&
+            obj->getValue<std::string>("requestType") == "cancelaOperacao") {
+            messageCancelaOperacao(obj);
+            return;
+        }
+    } catch (const std::exception &e) {
+        std::cerr << "Error parsing message: " << e.what() << ": "
+                  << message.message << std::endl;
+    }
+}
+
 int CALLING_COV operacao_cancelada() {
     std::cout << __func__ << std::endl;
-    return operacaoCancelada ? 1 : 0;
+
+    checkOperacaoCancelada();
+
+    return operacaoCancelada.load() ? 1 : 0;
 }
 
 int CALLING_COV seta_operacao_cancelada(bool bCancelada) {
@@ -383,6 +439,94 @@ void *CALLING_COV callBackPreviewComprovante(char *pComprovante) {
     return nullptr;
 }
 
+int CALLING_COV callbackSolicitaConfirmacao(char *pMensagem) {
+    auto msgTxt = convertTextToUTF8(pMensagem);
+    std::cout << __func__ << ": " << msgTxt << std::endl;
+
+    auto msg = initMessage(MessageTypes::SOLICITA_CONFIRMACAO);
+
+    msg->set("mensagem", msgTxt);
+
+    broadcastJson(msg);
+
+    int result = 0;
+
+    while (!stop) {
+        std::unique_lock<std::shared_mutex> lock(messagesMtx);
+
+        if (messages.empty()) {
+            lock.unlock();
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            continue;
+        }
+
+        auto message = messages.front();
+
+        std::cout << "Received message: " << message.message << std::endl;
+
+        if (message.message == "stop") {
+            stop.store(true);
+            return 1;
+        }
+
+        try {
+            auto obj = Poco::JSON::Parser()
+                           .parse(message.message)
+                           .extract<Poco::JSON::Object::Ptr>();
+            messages.pop();
+
+            if (obj->has("requestType") &&
+                obj->getValue<std::string>("requestType") ==
+                    MessageTypes::SOLICITA_CONFIRMACAO) {
+                auto op = obj->getValue<int>("op");
+
+                result = op;
+                std::cout << __func__ << ": " << result << std::endl;
+                return op;
+            }
+
+            std::cout << __func__ << ": "
+                      << "Invalid message: " << message.message << std::endl;
+
+            std::scoped_lock<std::mutex> lck(clientsMtx);
+
+            auto cli = findClientNotLock(message.ws);
+            std::scoped_lock<std::mutex> lck2(cli->mtx);
+
+            auto msgToCli = jsonToStr(msg);
+            cli->ws.sendFrame(msgToCli.c_str(),
+                              static_cast<int>(msgToCli.size()),
+                              WebSocket::FRAME_TEXT);
+        } catch (const std::exception &e) {
+            try {
+                std::cerr << "Error parsing message: " << e.what() << ": "
+                          << message.message << std::endl;
+                std::scoped_lock<std::mutex> lck(clientsMtx);
+
+                auto cli = findClientNotLock(message.ws);
+                std::scoped_lock<std::mutex> lck2(cli->mtx);
+
+                auto msgToCli = jsonToStr(msg);
+                cli->ws.sendFrame(msgToCli.c_str(),
+                                  static_cast<int>(msgToCli.size()),
+                                  WebSocket::FRAME_TEXT);
+            } catch (const std::exception &e) {
+                std::cerr << "Error parsing message: " << e.what() << ": "
+                          << message.message << std::endl;
+            }
+
+            if (!messages.empty()) {
+                messages.pop();
+            }
+            lock.unlock();
+        }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+
+    return result;
+}
+
 int callback_seleciona_op(char *pLabel, char *pOpcoes, int *iOpcaoSelecionada) {
     auto label = convertTextToUTF8(pLabel);
     auto opcoes = convertTextToUTF8(pOpcoes);
@@ -454,12 +598,27 @@ int callback_seleciona_op(char *pLabel, char *pOpcoes, int *iOpcaoSelecionada) {
                               static_cast<int>(msgToCli.size()),
                               WebSocket::FRAME_TEXT);
         } catch (const std::exception &e) {
-            std::cerr << "Error parsing message: " << e.what() << ": "
-                      << message.message << std::endl;
+            try {
+                std::cerr << "Error parsing message: " << e.what() << ": "
+                          << message.message << std::endl;
+                std::scoped_lock<std::mutex> lck(clientsMtx);
+
+                auto cli = findClientNotLock(message.ws);
+                std::scoped_lock<std::mutex> lck2(cli->mtx);
+
+                auto msgToCli = jsonToStr(msg);
+                cli->ws.sendFrame(msgToCli.c_str(),
+                                  static_cast<int>(msgToCli.size()),
+                                  WebSocket::FRAME_TEXT);
+            } catch (const std::exception &e) {
+                std::cerr << "Error parsing message: " << e.what() << ": "
+                          << message.message << std::endl;
+            }
 
             if (!messages.empty()) {
                 messages.pop();
             }
+            lock.unlock();
         }
 
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -607,15 +766,6 @@ void messageObtemComprovante(const Poco::JSON::Object::Ptr &obj) {
     msgToCli->set("retn", 0);
     msgToCli->set("comprovante", comprovante);
     msgToCli->set("comprovanteReduzido", comprovanteRed);
-
-    broadcastJson(msgToCli);
-}
-
-void messageCancelaOperacao(const Poco::JSON::Object::Ptr &obj) {
-    operacaoCancelada = true;
-
-    auto msgToCli = obj;
-    msgToCli->set("retn", operacaoCancelada.load());
 
     broadcastJson(msgToCli);
 }
@@ -858,6 +1008,7 @@ int main() {
     integ.setCallBackPreviewComprovante(callBackPreviewComprovante);
     integ.setCallBackOperacaoCancelada(operacao_cancelada);
     integ.setCallBackSetaOperacaoCancelada(seta_operacao_cancelada);
+    integ.setCallBackSolicitaConfirmacao(callbackSolicitaConfirmacao);
 
     uint16_t port = static_cast<uint16_t>(std::stoul(getenvor("PORT", "9000")));
 
@@ -872,6 +1023,7 @@ int main() {
 
         // Keep the server running
         while (!stop.load()) {
+            operacaoCancelada = false;
             processMessages();
             Thread::sleep(500);
         }

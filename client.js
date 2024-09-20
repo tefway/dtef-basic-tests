@@ -27,6 +27,7 @@ const RequestType = Object.freeze({
     MENSAGEM_ADICIONAL: 'mensagemAdicional',
     PREVIEW_COMPROVANTE: 'previewComprovante',
     CANCELAMENTO_PAGAMENTO: 'cancelamentoPagamento',
+    SOLICITA_CONFIRMACAO: 'solicitaConfirmacao',
 });
 
 class WebSocketClient {
@@ -87,8 +88,16 @@ class WebSocketClient {
             case RequestType.TRANSACAO_VOUCHER:
                 console.log('Transaction Result:', response);
 
+
+                this.sendRequest(RequestType.OBTEM_COMPROVANTE, { numeroControle: response.numeroControle });
+
                 // Example: Automatically confirm the transaction
                 this.sendRequest(RequestType.CONFIRMA, { numeroControle: response.numeroControle });
+
+
+                setTimeout(() => {
+                    this.cancelamentoPagamento(response.numeroControle);
+                }, 5000);
                 break;
             case RequestType.CONFIRMA:
                 console.log('Confirm Result:', response.retn);
@@ -119,6 +128,18 @@ class WebSocketClient {
 
                 rl.question('Digite a opção desejada: ' + response.opcoes, (answer) => {
                     this.sendRequest(RequestType.SELECIONA_OP, { op: answer });
+                });
+
+                break;
+
+            case RequestType.OBTEM_COMPROVANTE:
+                console.log('Comprovante:', response);
+                break;
+            case RequestType.SOLICITA_CONFIRMACAO:
+                console.log('Message:', response);
+
+                rl.question('Digite a resposta: ' + response.mensagem + ' resposta com código 0 ou 1:', (answer) => {
+                    this.sendRequest(RequestType.SOLICITA_CONFIRMACAO, { op: answer });
                 });
 
                 break;
@@ -170,3 +191,16 @@ setTimeout(() => {
         client.sendRequest(RequestType.TRANSACAO_DEBITO, { valor: valor, cupom: cupom });
     }, 5000);
 }, 1000);
+
+
+// handle ctrl c
+/*process.on('SIGINT', function () {
+    console.log('Caught interrupt signal');
+    client.sendRequest(RequestType.CANCELA_OPERACAO);
+
+    setTimeout(() => {
+        client.finaliza();
+        process.exit();
+    }, 5000);
+});
+*/
