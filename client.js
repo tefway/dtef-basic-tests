@@ -46,6 +46,16 @@ class WebSocketClient {
 
         this.ws.on('message', (data) => {
             console.log('Received message:', data);
+
+            if (data == 'ping') {
+                this.ws.send('pong');
+                return;
+            }
+
+            if (data == "pong") {
+                return;
+            }
+
             const response = JSON.parse(data);
             this.handleResponse(response);
         });
@@ -95,9 +105,9 @@ class WebSocketClient {
                 this.sendRequest(RequestType.CONFIRMA, { numeroControle: response.numeroControle });
 
 
-                setTimeout(() => {
+                /*setTimeout(() => {
                     this.cancelamentoPagamento(response.numeroControle);
-                }, 5000);
+                }, 5000);*/
                 break;
             case RequestType.CONFIRMA:
                 console.log('Confirm Result:', response.retn);
@@ -163,6 +173,10 @@ class WebSocketClient {
     finaliza() {
         this.sendRequest(RequestType.FINALIZA);
     }
+
+    ping() {
+        this.ws.send('ping');
+    }
 }
 
 // get env url
@@ -170,6 +184,18 @@ const url = process.env.WS_URL || 'ws://localhost:8080';
 
 // Example usage
 const client = new WebSocketClient(url);
+
+function sendPing() {
+    if (client && client.ws.readyState === WebSocket.OPEN) {
+        client.ping();
+    }
+
+    setTimeout(() => {
+        sendPing();
+    }, 5000);
+}
+
+sendPing();
 
 // type the valor
 const valor = process.env.VALOR || '1000';

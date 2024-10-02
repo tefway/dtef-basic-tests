@@ -20,6 +20,7 @@
 #include <csignal>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <deque>
 #include <functional>
 #include <iostream>
@@ -344,7 +345,8 @@ void checkOperacaoCancelada() {
 }
 
 int CALLING_COV operacao_cancelada() {
-    std::cout << __func__ << std::endl;
+    std::cout << __func__ << " status: " << operacaoCancelada.load()
+              << std::endl;
 
     checkOperacaoCancelada();
 
@@ -444,6 +446,10 @@ int CALLING_COV callbackSolicitaConfirmacao(char *pMensagem) {
     std::cout << __func__ << ": " << msgTxt << std::endl;
 
     auto msg = initMessage(MessageTypes::SOLICITA_CONFIRMACAO);
+
+    if (msgTxt.empty()) {
+        msgTxt = "Confirma?";
+    }
 
     msg->set("mensagem", msgTxt);
 
@@ -932,6 +938,15 @@ class WebSocketRequestHandler : public HTTPRequestHandler {
                 if (flags & WebSocket::FRAME_OP_CLOSE) {
                     std::cout << "WebSocket connection closed" << std::endl;
                     break;
+                }
+
+                if (strncmp(data.begin(), "ping", data.size()) == 0) {
+                    ws.sendFrame("pong", 4, WebSocket::FRAME_TEXT);
+                    continue;
+                }
+
+                if (strncmp(data.begin(), "pong", data.size()) == 0) {
+                    continue;
                 }
 
                 if (n > 0) {
