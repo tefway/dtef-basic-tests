@@ -32,6 +32,9 @@ const RequestType = Object.freeze({
     ENTRA_VALOR_ESPECIAL: 'entraValorEspecial',
 });
 
+const TEF_OK = 0;
+const TEF_ERRO = 1;
+
 class WebSocketClient {
     constructor(url = 'ws://localhost:8080') {
         this.url = url;
