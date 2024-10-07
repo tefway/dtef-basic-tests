@@ -44,6 +44,8 @@ ClasseIntegracao integ;
 
 std::chrono::seconds callbackTimeout = std::chrono::seconds(600);
 
+bool ignorarPerguntaValor = true;
+
 struct Client {
     WebSocket ws;
     std::mutex mtx;
@@ -359,7 +361,10 @@ int CALLING_COV operacao_cancelada() {
 
     checkOperacaoCancelada();
 
-    return operacaoCancelada.load() ? 1 : 0;
+    auto resultado = operacaoCancelada.load() ? 1 : 0;
+    operacaoCancelada = false;
+
+    return resultado;
 }
 
 int CALLING_COV seta_operacao_cancelada(bool bCancelada) {
@@ -676,12 +681,19 @@ int CALLING_COV callbackEntraValor(char *pLabel, char *pValor,
                                    char *pValorMinimo, char *pValorMaximo) {
     auto label = convertTextToUTF8(pLabel);
 
+    std::cout << __func__ << ": " << label << std::endl;
+
     auto msg = initMessage(MessageTypes::ENTRA_VALOR);
 
     msg->set("label", label);
 
     if (pValor != nullptr) {
-        msg->set("valor", convertTextToUTF8(pValor));
+        auto valor = convertTextToUTF8(pValor);
+        msg->set("valor", valor);
+
+        if (ignorarPerguntaValor && valor.size() > 0) {
+            return TEF_OK;
+        }
     }
 
     if (pValorMinimo != nullptr) {
@@ -717,12 +729,19 @@ int CALLING_COV callbackEntraValorEspecial(char *pLabel, char *pValor,
                                            char *pParametros) {
     auto label = convertTextToUTF8(pLabel);
 
+    std::cout << __func__ << ": " << label << std::endl;
+
     auto msg = initMessage(MessageTypes::ENTRA_VALOR_ESPECIAL);
 
     msg->set("label", label);
 
     if (pValor != nullptr) {
-        msg->set("valor", convertTextToUTF8(pValor));
+        auto valor = convertTextToUTF8(pValor);
+        msg->set("valor", valor);
+
+        if (ignorarPerguntaValor && valor.size() > 0) {
+            return TEF_OK;
+        }
     }
 
     if (pParametros != nullptr) {
