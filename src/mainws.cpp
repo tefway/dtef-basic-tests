@@ -17,6 +17,7 @@
 #include <Poco/UTF8Encoding.h>
 #include <Poco/Windows1252Encoding.h>
 #include <atomic>
+#include <chrono>
 #include <csignal>
 #include <cstdint>
 #include <cstdlib>
@@ -40,6 +41,8 @@ using namespace Poco;
 namespace {
 std::atomic<bool> stop = false;
 ClasseIntegracao integ;
+
+std::chrono::seconds callbackTimeout = std::chrono::seconds(600);
 
 struct Client {
     WebSocket ws;
@@ -174,8 +177,14 @@ const std::string PREVIEW_COMPROVANTE = "previewComprovante";
 const std::string SELECIONA_OP = "seleciona_op";
 const std::string CANCELAMENTO_PAGAMENTO = "cancelamentoPagamento";
 const std::string SOLICITA_CONFIRMACAO = "solicitaConfirmacao";
+const std::string ENTRA_VALOR = "entraValor";
+const std::string ENTRA_VALOR_ESPECIAL = "entraValorEspecial";
 
 } // namespace MessageTypes
+
+const int TEF_OK = 0;
+const int TEF_ERRO = -1;
+
 } // namespace
 
 auto initMessage(const std::string &type) {
@@ -533,30 +542,16 @@ int CALLING_COV callbackSolicitaConfirmacao(char *pMensagem) {
     return result;
 }
 
-int callback_seleciona_op(char *pLabel, char *pOpcoes, int *iOpcaoSelecionada) {
-    auto label = convertTextToUTF8(pLabel);
-    auto opcoes = convertTextToUTF8(pOpcoes);
-    std::cout << __func__ << ": " << label << std::endl;
-    std::cout << __func__ << ": " << opcoes << std::endl;
-    std::cout << __func__ << ": " << *iOpcaoSelecionada << std::endl;
-
-    sel_op_aguardando = true;
-
-    CallOnDtor cod([&]() { sel_op_aguardando = false; });
-
-    auto msg = initMessage("seleciona_op");
-    msg->set("label", label);
-    msg->set("opcoes_raw", opcoes);
-    try {
-        msg->set("opcoes", parseOpcoes(opcoes));
-    } catch (const std::exception &e) {
-        std::cerr << "Error parsing opcoes: " << e.what() << " " << opcoes
-                  << std::endl;
-    }
-
-    broadcastJson(msg);
+int aguardaResposta(Poco::JSON::Object::Ptr msg, const std::string &type,
+                    const std::function<int(Poco::JSON::Object::Ptr)> &cbFN) {
+    auto start = std::chrono::steady_clock::now();
 
     while (!stop) {
+        if (std::chrono::steady_clock::now() - start > callbackTimeout) {
+            std::cerr << "Timeout waiting for response" << std::endl;
+            return TEF_OK;
+        }
+
         std::unique_lock<std::shared_mutex> lock(messagesMtx);
 
         if (messages.empty()) {
@@ -581,14 +576,8 @@ int callback_seleciona_op(char *pLabel, char *pOpcoes, int *iOpcaoSelecionada) {
             messages.pop();
 
             if (obj->has("requestType") &&
-                obj->getValue<std::string>("requestType") == "seleciona_op") {
-                auto op = obj->getValue<int>("op");
-                auto retn = obj->getNullableValue<int>("retn").value(0);
-
-                *iOpcaoSelecionada = op;
-                std::cout << __func__ << ": " << *iOpcaoSelecionada
-                          << std::endl;
-                return retn;
+                obj->getValue<std::string>("requestType") == type) {
+                return cbFN(obj);
             }
 
             std::cout << __func__ << ": "
@@ -630,7 +619,135 @@ int callback_seleciona_op(char *pLabel, char *pOpcoes, int *iOpcaoSelecionada) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
-    return 0;
+    return TEF_OK;
+}
+
+int CALLING_COV callbackEntraCartao(char *pLabel, char *pCartao) {
+    auto label = convertTextToUTF8(pLabel);
+    auto cartao = convertTextToUTF8(pCartao);
+    std::cout << __func__ << ": " << label << std::endl;
+    std::cout << __func__ << ": " << cartao << std::endl;
+
+    auto msg = initMessage("entraCartao");
+    msg->set("label", label);
+    msg->set("cartao", cartao);
+
+    broadcastJson(msg);
+
+    return stop.load() ? TEF_ERRO : TEF_OK;
+}
+
+int callback_seleciona_op(char *pLabel, char *pOpcoes, int *iOpcaoSelecionada) {
+    auto label = convertTextToUTF8(pLabel);
+    auto opcoes = convertTextToUTF8(pOpcoes);
+    std::cout << __func__ << ": " << label << std::endl;
+    std::cout << __func__ << ": " << opcoes << std::endl;
+    std::cout << __func__ << ": " << *iOpcaoSelecionada << std::endl;
+
+    sel_op_aguardando = true;
+
+    CallOnDtor cod([&]() { sel_op_aguardando = false; });
+
+    auto msg = initMessage(MessageTypes::SELECIONA_OP);
+    msg->set("label", label);
+    msg->set("opcoes_raw", opcoes);
+    try {
+        msg->set("opcoes", parseOpcoes(opcoes));
+    } catch (const std::exception &e) {
+        std::cerr << "Error parsing opcoes: " << e.what() << " " << opcoes
+                  << std::endl;
+    }
+
+    broadcastJson(msg);
+
+    return aguardaResposta(
+        msg, MessageTypes::SELECIONA_OP, [&](Poco::JSON::Object::Ptr obj) {
+            auto op = obj->getValue<int>("op");
+            auto retn = obj->getNullableValue<int>("retn").value(0);
+
+            *iOpcaoSelecionada = op;
+            std::cout << __func__ << ": " << *iOpcaoSelecionada << std::endl;
+
+            return retn;
+        });
+}
+
+int CALLING_COV callbackEntraValor(char *pLabel, char *pValor,
+                                   char *pValorMinimo, char *pValorMaximo) {
+    auto label = convertTextToUTF8(pLabel);
+
+    auto msg = initMessage(MessageTypes::ENTRA_VALOR);
+
+    msg->set("label", label);
+
+    if (pValor != nullptr) {
+        msg->set("valor", convertTextToUTF8(pValor));
+    }
+
+    if (pValorMinimo != nullptr) {
+        msg->set("valorMinimo", convertTextToUTF8(pValorMinimo));
+    }
+
+    if (pValorMaximo != nullptr) {
+        msg->set("valorMaximo", convertTextToUTF8(pValorMaximo));
+    }
+
+    broadcastJson(msg);
+
+    aguardaResposta(msg, MessageTypes::ENTRA_VALOR,
+                    [&](Poco::JSON::Object::Ptr obj) {
+                        auto op = obj->getValue<std::string>("op");
+
+                        if (op == "cancelaOperacao") {
+                            return TEF_ERRO;
+                        }
+
+                        if (op.empty()) {
+                            return TEF_OK;
+                        }
+
+                        strcpy(pValor, op.c_str());
+                        return TEF_OK;
+                    });
+
+    return stop.load() ? TEF_ERRO : TEF_OK;
+}
+
+int CALLING_COV callbackEntraValorEspecial(char *pLabel, char *pValor,
+                                           char *pParametros) {
+    auto label = convertTextToUTF8(pLabel);
+
+    auto msg = initMessage(MessageTypes::ENTRA_VALOR_ESPECIAL);
+
+    msg->set("label", label);
+
+    if (pValor != nullptr) {
+        msg->set("valor", convertTextToUTF8(pValor));
+    }
+
+    if (pParametros != nullptr) {
+        msg->set("parametros", convertTextToUTF8(pParametros));
+    }
+
+    broadcastJson(msg);
+
+    aguardaResposta(msg, MessageTypes::ENTRA_VALOR_ESPECIAL,
+                    [&](Poco::JSON::Object::Ptr obj) {
+                        auto op = obj->getValue<std::string>("op");
+
+                        if (op == "cancelaOperacao") {
+                            return TEF_ERRO;
+                        }
+
+                        if (op.empty()) {
+                            return TEF_OK;
+                        }
+
+                        strcpy(pValor, op.c_str());
+                        return TEF_OK;
+                    });
+
+    return stop.load() ? TEF_ERRO : TEF_OK;
 }
 
 void messageCredito(const Poco::JSON::Object::Ptr &obj) {
@@ -1024,6 +1141,8 @@ int main() {
     integ.setCallBackOperacaoCancelada(operacao_cancelada);
     integ.setCallBackSetaOperacaoCancelada(seta_operacao_cancelada);
     integ.setCallBackSolicitaConfirmacao(callbackSolicitaConfirmacao);
+    integ.setCallBackEntraValor(callbackEntraValor);
+    integ.setCallBackEntraValorEspecial(callbackEntraValorEspecial);
 
     uint16_t port = static_cast<uint16_t>(std::stoul(getenvor("PORT", "9000")));
 

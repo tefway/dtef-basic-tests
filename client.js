@@ -28,6 +28,8 @@ const RequestType = Object.freeze({
     PREVIEW_COMPROVANTE: 'previewComprovante',
     CANCELAMENTO_PAGAMENTO: 'cancelamentoPagamento',
     SOLICITA_CONFIRMACAO: 'solicitaConfirmacao',
+    ENTRA_VALOR: 'entraValor',
+    ENTRA_VALOR_ESPECIAL: 'entraValorEspecial',
 });
 
 class WebSocketClient {
@@ -138,6 +140,14 @@ class WebSocketClient {
 
                 rl.question('Digite a opção desejada: ' + response.opcoes, (answer) => {
                     this.sendRequest(RequestType.SELECIONA_OP, { op: answer });
+                });
+
+                break;
+            case RequestType.ENTRA_VALOR:
+                console.log('Message:', response);
+
+                rl.question('Digite o valor: ', (answer) => {
+                    this.sendRequest(RequestType.ENTRA_VALOR, { op: answer });
                 });
 
                 break;
