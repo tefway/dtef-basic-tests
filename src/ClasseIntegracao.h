@@ -43,7 +43,8 @@ template <size_t num> struct CampoNumerico {
             begin = valor.end() - num;
         }
 
-        std::copy_backward(valor.begin(), valor.end(), campo.end() - 1);
+        std::copy_backward(begin, valor.end(), campo.end() - 1);
+        campo.back() = 0;
     }
 
     char *get() { return campo.data(); }

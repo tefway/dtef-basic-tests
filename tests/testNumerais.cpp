@@ -11,4 +11,3 @@ TEST(CampoNumericoTests, FirstTest) {
     campo.clear();
     ASSERT_STREQ(campo.get(), "00000");
 }
-
