@@ -1,13 +1,55 @@
 #pragma once
 #include "stdafx.h"
+#include <algorithm>
+#include <array>
 #include <iostream>
 #include <string>
+#include <string_view>
 
 #if defined(_WIN32) || defined(_WIN64)
 #define CALLING_COV __stdcall
 #else
 #define CALLING_COV
 #endif
+
+template <size_t num> struct CampoNumerico {
+    std::array<char, num + 1> campo;
+
+    CampoNumerico() {
+        std::fill(campo.begin(), campo.end(), '0');
+        campo.back() = 0;
+    }
+
+    CampoNumerico(std::string_view valor) { set(valor); }
+
+    CampoNumerico(const std::string &valor) { set(valor); }
+
+    void clear() {
+        std::fill(campo.begin(), campo.end(), '0');
+        campo.back() = 0;
+    }
+
+    void set(std::string_view valor) {
+        std::fill(campo.begin(), campo.end(), '0');
+        campo.back() = 0;
+
+        if (valor.empty()) {
+            return;
+        }
+
+        auto begin = valor.begin();
+
+        if (valor.size() > num) {
+            begin = valor.end() - num;
+        }
+
+        std::copy_backward(valor.begin(), valor.end(), campo.end() - 1);
+    }
+
+    char *get() { return campo.data(); }
+
+    operator char *() { return campo.data(); }
+};
 
 class ClasseIntegracao {
   private:
@@ -745,7 +787,8 @@ class ClasseIntegracao {
         int iCodigoParametro, char *pValorParamtero, char *pTamanhoParametro);
 
   public:
-    int TransacaoCartaoCredito(char *valor, char *numeroCupom,
+    int TransacaoCartaoCredito(CampoNumerico<12> valor,
+                               CampoNumerico<6> numeroCupom,
                                char *numeroControle);
     void carregaDll(void);
     void VersaoDPOS(char *pVersao);
@@ -759,7 +802,8 @@ class ClasseIntegracao {
                                      char *pDadosServicos,
                                      char *pPermiteAlteracao, char *pReservado);
     int ImprimeCupomTEF(char *pPathArquivoCupomTEF, char *pMensagemOperador);
-    int TransacaoCartaoDebito(char *pValorTransacao, char *pNumeroCupom,
+    int TransacaoCartaoDebito(CampoNumerico<12> valor,
+                              CampoNumerico<6> numeroCupom,
                               char *pNumeroControle);
     int TransacaoCartaoParceleMais(char *pValorTransacao, char *pNumeroCupom,
                                    char *pNumeroControle, char *pCodigoTabela);
@@ -767,7 +811,8 @@ class ClasseIntegracao {
         char *pValorTransacao, char *pNumeroCupom, char *pNumeroControle,
         char *pCodigoTabela, char *pNumeroParcelas, char *pValorParcela,
         char *pVencimentoPrimeiraParcela, char *pPermiteAlteracao);
-    int TransacaoCartaoVoucher(char *pValorTransacao, char *pNumeroCupom,
+    int TransacaoCartaoVoucher(CampoNumerico<12> valor,
+                               CampoNumerico<6> numeroCupom,
                                char *pNumeroControle);
     int TransacaoCheque(char *pValorTransacao, char *pNumeroCupom,
                         char *pNumeroControle, char *pQuantidadeCheques,

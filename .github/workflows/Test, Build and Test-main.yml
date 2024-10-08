@@ -20,7 +20,7 @@ jobs:
       - name: Installing Dependencies
         run: |
           sudo apt-get update && sudo apt-get install build-essential
-          sudo apt install cmake -y
+          sudo apt install cmake libgtest-dev googletest -y
           sudo apt install clang-15 clang-tidy-15 clang-format-15 ninja-build -y
           sudo apt install libpoco-dev -y
 

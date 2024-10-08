@@ -266,8 +266,9 @@ void ClasseIntegracao::setCallBackSelecionaPlanosEx(
 
 void ClasseIntegracao::RegistrarFuncoesCallBack() {}
 
-// Fun��es de transacao
-int ClasseIntegracao::TransacaoCartaoCredito(char *valor, char *numeroCupom,
+// Funções de transacao
+int ClasseIntegracao::TransacaoCartaoCredito(CampoNumerico<12> valor,
+                                             CampoNumerico<6> numeroCupom,
                                              char *numeroControle) {
     int retorno = 11;
     memset(numeroControle, 0, 7);
@@ -369,8 +370,8 @@ int ClasseIntegracao::ImprimeCupomTEF(char *pPathArquivoCupomTEF,
     return retorno;
 }
 
-int ClasseIntegracao::TransacaoCartaoDebito(char *pValorTransacao,
-                                            char *pNumeroCupom,
+int ClasseIntegracao::TransacaoCartaoDebito(CampoNumerico<12> valor,
+                                            CampoNumerico<6> numeroCupom,
                                             char *pNumeroControle) {
     int retorno = 11;
     memset(pNumeroControle, 0, 6);
@@ -381,8 +382,8 @@ int ClasseIntegracao::TransacaoCartaoDebito(char *pValorTransacao,
                 GetProcAddress(handle, "TransacaoCartaoDebito"));
 
         if (TransacaoCartaoDebitoPtr != NULL) {
-            retorno = TransacaoCartaoDebitoPtr(pValorTransacao, pNumeroCupom,
-                                               pNumeroControle);
+            retorno =
+                TransacaoCartaoDebitoPtr(valor, numeroCupom, pNumeroControle);
         }
     }
 
@@ -434,8 +435,8 @@ int ClasseIntegracao::TransacaoCartaoParceleMaisCompleta(
     return retorno;
 }
 
-int ClasseIntegracao::TransacaoCartaoVoucher(char *pValorTransacao,
-                                             char *pNumeroCupom,
+int ClasseIntegracao::TransacaoCartaoVoucher(CampoNumerico<12> valor,
+                                             CampoNumerico<6> numeroCupom,
                                              char *pNumeroControle) {
     int retorno = 11;
     memset(pNumeroControle, 0, 6);
@@ -446,8 +447,8 @@ int ClasseIntegracao::TransacaoCartaoVoucher(char *pValorTransacao,
                 GetProcAddress(handle, "TransacaoCartaoVoucher"));
 
         if (TransacaoCartaoVoucherPtr != NULL) {
-            retorno = TransacaoCartaoVoucherPtr(pValorTransacao, pNumeroCupom,
-                                                pNumeroControle);
+            retorno =
+                TransacaoCartaoVoucherPtr(valor, numeroCupom, pNumeroControle);
         }
     }
 

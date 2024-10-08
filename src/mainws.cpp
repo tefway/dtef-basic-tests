@@ -104,17 +104,7 @@ auto jsonToStr(const Poco::JSON::Object::Ptr json) {
     return message;
 }
 
-void broadcastJson(const Poco::JSON::Object::Ptr json) {
-    std::string message;
-
-    {
-        std::stringstream sstr;
-        json->stringify(sstr);
-        message = sstr.str();
-    }
-
-    std::cout << "Broadcasting message: " << message << std::endl;
-
+void broadcastMessage(const std::string &message) {
     std::scoped_lock<std::mutex> lck(clientsMtx);
 
     std::vector<WebSocket> toRemove;
@@ -153,6 +143,20 @@ void broadcastJson(const Poco::JSON::Object::Ptr json) {
             clients.erase(it);
         }
     }
+}
+
+void broadcastJson(const Poco::JSON::Object::Ptr json) {
+    std::string message;
+
+    {
+        std::stringstream sstr;
+        json->stringify(sstr);
+        message = sstr.str();
+    }
+
+    std::cout << "Broadcasting message: " << message << std::endl;
+
+    broadcastMessage(message);
 }
 
 namespace {
@@ -319,6 +323,13 @@ void checkOperacaoCancelada() {
         operacaoCancelada = true;
         return;
     }
+
+    /*try {
+        broadcastMessage("ping");
+    } catch (const std::exception &e) {
+        std::cerr << "Error pinging operação cancelada: " << e.what()
+                  << std::endl;
+    }*/
 
     std::unique_lock<std::shared_mutex> lock(messagesMtx);
 
@@ -775,8 +786,7 @@ void messageCredito(const Poco::JSON::Object::Ptr &obj) {
 
     char buffControle[128]{};
 
-    auto retn =
-        integ.TransacaoCartaoCredito(valor.data(), cupom.data(), buffControle);
+    auto retn = integ.TransacaoCartaoCredito(valor, cupom, buffControle);
 
     auto msgToCli = obj;
     msgToCli->set("retn", retn);
@@ -791,8 +801,7 @@ void messageDebito(const Poco::JSON::Object::Ptr &obj) {
 
     char buffControle[128]{};
 
-    auto retn =
-        integ.TransacaoCartaoDebito(valor.data(), cupom.data(), buffControle);
+    auto retn = integ.TransacaoCartaoDebito(valor, cupom, buffControle);
 
     auto msgToCli = obj;
     msgToCli->set("retn", retn);
@@ -807,8 +816,7 @@ void messageVoucher(const Poco::JSON::Object::Ptr &obj) {
 
     char buffControle[128]{};
 
-    auto retn =
-        integ.TransacaoCartaoVoucher(valor.data(), cupom.data(), buffControle);
+    auto retn = integ.TransacaoCartaoVoucher(valor, cupom, buffControle);
 
     auto msgToCli = obj;
     msgToCli->set("retn", retn);
@@ -829,12 +837,16 @@ void messageConfirma(const Poco::JSON::Object::Ptr &obj) {
 }
 
 void messageCancelamentoPagamento(const Poco::JSON::Object::Ptr &obj) {
-    auto numeroControle = obj->getValue<std::string>("numeroControle");
+    auto numeroControle =
+        obj->getNullableValue<std::string>("numeroControle").value("");
 
-    auto retn = integ.TransacaoCancelamentoPagamento(numeroControle.data());
+    char buffControle[128]{};
+
+    auto retn = integ.TransacaoCancelamentoPagamento(buffControle);
 
     auto msgToCli = obj;
     msgToCli->set("retn", retn);
+    msgToCli->set("numeroControle", std::string(buffControle));
 
     broadcastJson(msgToCli);
 }
