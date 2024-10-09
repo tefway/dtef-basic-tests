@@ -998,7 +998,11 @@ void processMessages() {
                     alertError(e.what());
                 }
             } else {
-                std::cerr << "Invalid message type: " << type << std::endl;
+                std::cerr << "Invalid message type: " << type << " ";
+                obj->stringify(std::cerr);
+                std::cerr << std::endl;
+
+                messages.pop();
                 return;
             }
         } else {
