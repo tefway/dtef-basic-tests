@@ -12,10 +12,29 @@ static bool isCancelada{};
 
 #if !defined(_WIN32) && !defined(_WIN64)
 namespace {
-inline void *LoadLibrary(const char *name) { return dlopen(name, RTLD_NOW); }
+inline void *LoadLibrary(const char *name) {
+    dlerror(); // Clear any existing error
+    auto *res = dlopen(name, RTLD_NOW);
+
+    if (res == nullptr) {
+        std::cerr << "Error loading library: " << dlerror() << std::endl;
+        return nullptr;
+    }
+
+    return res;
+}
 
 inline void *GetProcAddress(void *handle, const char *name) {
-    return dlsym(handle, name);
+    dlerror(); // Clear any existing error
+    auto *res = dlsym(handle, name);
+
+    if (res == nullptr) {
+        std::cerr << "Error getting function address: " << name
+                  << " error: " << dlerror() << std::endl;
+        return nullptr;
+    }
+
+    return res;
 }
 
 inline void FreeLibrary(void *handle) { dlclose(handle); }
