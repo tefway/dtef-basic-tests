@@ -791,7 +791,7 @@ class ClasseIntegracao {
     int TransacaoCartaoCredito(CampoNumerico<12> valor,
                                CampoNumerico<6> numeroCupom,
                                char *numeroControle);
-    void carregaDll(void);
+    bool carregaDll(const char *nome = "libDPOSDRV.so");
     void VersaoDPOS(char *pVersao);
     int TransacaoCartaoFrota(char *pValorTransacao, char *pNumeroCupom,
                              char *pNumeroControle);

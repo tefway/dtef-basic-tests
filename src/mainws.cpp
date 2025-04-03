@@ -1164,7 +1164,7 @@ int main() {
     signal(SIGINT, signal_callback_handler);
     signal(SIGTERM, signal_callback_handler);
 
-    integ.carregaDll();
+    integ.carregaDll(getenvor("DPOS_SO_FULL_PATH", "./libDPOSDRV.so").c_str());
     integ.setCallBackDisplayErro(display_error);
     integ.setCallBackDisplayMensagem(display_msg);
     integ.setCallBackDisplayTerminal(display_terminal);

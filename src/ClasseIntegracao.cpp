@@ -41,13 +41,15 @@ inline void FreeLibrary(void *handle) { dlclose(handle); }
 } // namespace
 #endif
 
-void ClasseIntegracao::carregaDll(void) {
+bool ClasseIntegracao::carregaDll(const char *nome) {
     if (handle == NULL) {
-        handle = LoadLibrary("libDPOSDRV.so");
+        handle = LoadLibrary(nome);
     }
 
     if (semTelas)
         RegistrarFuncoesCallBack();
+
+    return handle != nullptr;
 }
 
 void ClasseIntegracao::setTransacaoSemTelas() { semTelas = true; }
