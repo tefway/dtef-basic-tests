@@ -901,8 +901,13 @@ void ClasseIntegracao::ObtemCodigoRetorno(int iCodigoRetorno,
     }
 }
 
-void ClasseIntegracao::ObtemLogUltimaTransacao(char *oLogUltimaTransacao) {
+void ClasseIntegracao::ObtemLogUltimaTransacao(char *oLogUltimaTransacao,
+                                               bool logExtendido) {
     memset(oLogUltimaTransacao, 0, 258);
+
+    if (logExtendido) {
+        strcpy(oLogUltimaTransacao, "LOGESTENDIDO");
+    }
 
     if (handle != nullptr) {
         FObtemLogUltimaTransacao ObtemLogUltimaTransacaoPtr =

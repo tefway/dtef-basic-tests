@@ -850,7 +850,8 @@ class ClasseIntegracao {
     void DadosUltimaTransacao(char *pDadosUltimaTransacao);
     void ObtemCodigoRetorno(int iCodigoRetorno, char *pCodigoRetorno);
     ;
-    void ObtemLogUltimaTransacao(char *oLogUltimaTransacao);
+    void ObtemLogUltimaTransacao(char *oLogUltimaTransacao,
+                                 bool logExtendido = false);
     void ObtemLogUltimaTransacaoTeleMarketing(char *pNumeroPDV,
                                               char *oLogUltimaTransacao);
     void ObtemLogUltimaTransacaoTeleMarketingMultiLoja(

@@ -865,7 +865,7 @@ void messageDesfaz(const Poco::JSON::Object::Ptr &obj) {
 void messageObtemLogUltimaTransacao(const Poco::JSON::Object::Ptr &obj) {
     std::array<char, 1024> buffer{};
 
-    integ.ObtemLogUltimaTransacao(buffer.data());
+    integ.ObtemLogUltimaTransacao(buffer.data(), true);
     Poco::Dynamic::Var res;
 
     std::string str;
