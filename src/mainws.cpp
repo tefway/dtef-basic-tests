@@ -937,6 +937,8 @@ void messageObtemLogUltimaTransacao(const Poco::JSON::Object::Ptr &obj) {
 
     std::string str;
 
+    auto msgToCli = obj;
+
     try {
         str = convertTextToUTF8(buffer.data());
     } catch (const std::exception &e) {
@@ -950,13 +952,13 @@ void messageObtemLogUltimaTransacao(const Poco::JSON::Object::Ptr &obj) {
     } catch (const std::exception &e) {
         std::cerr << __func__ << ": " << e.what() << std::endl;
         try {
+            msgToCli->set("dados_raw", str);
             res = logTransacaoDeprecadaParaJson(str);
         } catch (const std::exception &e) {
             std::cerr << __func__ << ": " << e.what() << std::endl;
         }
     }
 
-    auto msgToCli = obj;
     msgToCli->set("dados", res);
     msgToCli->set("retn", res.isEmpty() ? TEF_ERRO : TEF_OK);
 
