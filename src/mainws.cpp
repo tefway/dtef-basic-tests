@@ -862,6 +862,28 @@ void messageDesfaz(const Poco::JSON::Object::Ptr &obj) {
     broadcastJson(msgToCli);
 }
 
+void messageObtemLogUltimaTransacao(const Poco::JSON::Object::Ptr &obj) {
+    std::array<char, 1024> buffer{};
+
+    integ.ObtemLogUltimaTransacao(buffer.data());
+    Poco::Dynamic::Var res;
+
+    try {
+        auto str = convertTextToUTF8(buffer.data());
+        std::cout << __func__ << ": " << str << std::endl;
+
+        res = Poco::JSON::Parser().parse(str);
+    } catch (const std::exception &e) {
+        std::cerr << __func__ << ": " << e.what() << std::endl;
+    }
+
+    auto msgToCli = obj;
+    msgToCli->set("dados", res);
+    msgToCli->set("retn", res.isEmpty() ? TEF_ERRO : TEF_OK);
+
+    broadcastJson(msgToCli);
+}
+
 void messageProcuraPinPad(const Poco::JSON::Object::Ptr &obj) {
     char buffer[1024]{};
     auto retn = integ.ProcuraPinPad(buffer);
@@ -962,18 +984,20 @@ void processMessages() {
 
     std::unordered_map<std::string,
                        std::function<void(const Poco::JSON::Object::Ptr &obj)>>
-        messageTypes{{"transacaoCredito", messageCredito},
-                     {"transacaoDebito", messageDebito},
-                     {"transacaoVoucher", messageVoucher},
-                     {"confirma", messageConfirma},
-                     {"desfaz", messageDesfaz},
-                     {"procura", messageProcuraPinPad},
-                     {"versao", messageVersao},
-                     {"inicializa", messageInicializa},
-                     {"finaliza", messageFinaliza},
-                     {"obtemComprovante", messageObtemComprovante},
-                     {"cancelaOperacao", messageCancelaOperacao},
-                     {"cancelamentoPagamento", messageCancelamentoPagamento}};
+        messageTypes{
+            {"transacaoCredito", messageCredito},
+            {"transacaoDebito", messageDebito},
+            {"transacaoVoucher", messageVoucher},
+            {"confirma", messageConfirma},
+            {"desfaz", messageDesfaz},
+            {"procura", messageProcuraPinPad},
+            {"versao", messageVersao},
+            {"inicializa", messageInicializa},
+            {"finaliza", messageFinaliza},
+            {"obtemComprovante", messageObtemComprovante},
+            {"cancelaOperacao", messageCancelaOperacao},
+            {"cancelamentoPagamento", messageCancelamentoPagamento},
+            {"obtemLogUltimaTransacao", messageObtemLogUltimaTransacao}};
 
     try {
         auto obj = Poco::JSON::Parser()
