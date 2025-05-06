@@ -30,6 +30,7 @@ const RequestType = Object.freeze({
     SOLICITA_CONFIRMACAO: 'solicitaConfirmacao',
     ENTRA_VALOR: 'entraValor',
     ENTRA_VALOR_ESPECIAL: 'entraValorEspecial',
+    OBTEM_LOG_ULTIMA_TRANSACAO: 'obtemLogUltimaTransacao',
 });
 
 const TEF_OK = 0;
@@ -166,6 +167,9 @@ class WebSocketClient {
                 });
 
                 break;
+            case RequestType.OBTEM_LOG_ULTIMA_TRANSACAO:
+                console.log('Log:', response);
+                break;
             default:
                 console.warn('Unknown response type:', response.requestType);
         }
@@ -228,6 +232,8 @@ setTimeout(() => {
 
     setTimeout(() => {
         client.sendRequest(RequestType.TRANSACAO_DEBITO, { valor: valor, cupom: cupom });
+        
+        client.sendRequest(RequestType.OBTEM_LOG_ULTIMA_TRANSACAO);
     }, 5000);
 }, 1000);
 

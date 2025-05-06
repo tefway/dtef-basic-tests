@@ -868,13 +868,25 @@ void messageObtemLogUltimaTransacao(const Poco::JSON::Object::Ptr &obj) {
     integ.ObtemLogUltimaTransacao(buffer.data());
     Poco::Dynamic::Var res;
 
+    std::string str;
+
     try {
-        auto str = convertTextToUTF8(buffer.data());
+        str = convertTextToUTF8(buffer.data());
+    } catch (const std::exception &e) {
+        std::cerr << __func__ << ": " << e.what() << std::endl;
+    }
+
+    try {
         std::cout << __func__ << ": " << str << std::endl;
 
         res = Poco::JSON::Parser().parse(str);
     } catch (const std::exception &e) {
         std::cerr << __func__ << ": " << e.what() << std::endl;
+        try {
+            res = str;
+        } catch (const std::exception &e) {
+            std::cerr << __func__ << ": " << e.what() << std::endl;
+        }
     }
 
     auto msgToCli = obj;
