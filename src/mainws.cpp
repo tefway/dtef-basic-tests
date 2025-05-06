@@ -862,6 +862,73 @@ void messageDesfaz(const Poco::JSON::Object::Ptr &obj) {
     broadcastJson(msgToCli);
 }
 
+auto logTransacaoDeprecadaParaJson(const std::string &str)
+    -> Poco::JSON::Object::Ptr {
+    /*
+    Registro do LOG Estendido
+    Descrição 	Tamanho 	Observação
+    NumeroEmpresa 	4 N
+    NumeroLoja 	6 N
+    TipoRegistro 	3 A
+
+        [XXX] Mesmo registro da transação original
+
+    Data 	8 N
+    Hora 	6 N
+    CodigoTransacao 	2 N 	Codigo da transação solicitada
+    NumeroEquipamento 	3 N
+    NumeroControle 	6 N 	NSU (número sequencial único)
+    ValorOriginal 	12 N 	Valor original da transação
+    ValorDesconto 	12 N 	Valor do desconto
+    ValorFinal 	12 N 	Valor final da transação (Original – Desconto)
+    CodigoBandeira 	4 N 	Código da bandeira do cartão (Tabela 5.0)
+    CodigoProdutoRede 	4 N 	Código do produto da rede utilizado na
+    transação. Será retornado somente para as redes que o utilizarem e “0000” em
+    caso contrário. CodigoBandeiraRede 	4 N 	Código da bandeira na rede
+    NumeroControleRede 	15 A 	Número do Controle da Rede com 15 posições (no
+    lognormal, está com 9) CódigoTEFTerceiro 	2 N 	Código do TEF a que se
+    referem os campos de bandeira e rede de terceiro (1=SiTef)
+    CodigoRedeTerceiro 	8 N 	Código da Rede do TEF de terceiro
+    CodigoBandeiraTerceiro 	8 N 	Código da Bandeira do TEF de terceiro
+    CNPJRedeAdquirente 	14 N 	CNPJ da rede adquirente
+    NumeroControleRedeAdicional 	32 A 	NSU Rede para rede Stone
+    CodigoBandeiraSefaz 	4 N 	Código da Bandeira na Sefaz
+    NomePortador 	32 A 	Nome do portador do cartão
+    Reservado 	54 A
+    CR+LF 	2 H 	[0D0A]
+
+    */
+
+    Poco::JSON::Object::Ptr obj = new Poco::JSON::Object;
+
+    obj->set("NumeroEmpresa", str.substr(0, 4));
+    obj->set("NumeroLoja", str.substr(4, 6));
+    obj->set("TipoRegistro", str.substr(10, 3));
+    obj->set("Data", str.substr(13, 8));
+    obj->set("Hora", str.substr(21, 6));
+    obj->set("CodigoTransacao", str.substr(27, 2));
+    obj->set("NumeroEquipamento", str.substr(29, 3));
+    obj->set("NumeroControle", str.substr(32, 6));
+    obj->set("ValorOriginal", str.substr(38, 12));
+    obj->set("ValorDesconto", str.substr(50, 12));
+    obj->set("ValorFinal", str.substr(62, 12));
+    obj->set("CodigoBandeira", str.substr(74, 4));
+    obj->set("CodigoProdutoRede", str.substr(78, 4));
+    obj->set("CodigoBandeiraRede", str.substr(82, 4));
+    obj->set("NumeroControleRede", str.substr(86, 15));
+    obj->set("CodigoTEFTerceiro", str.substr(101, 2));
+    obj->set("CodigoRedeTerceiro", str.substr(103, 8));
+    obj->set("CodigoBandeiraTerceiro", str.substr(111, 8));
+    obj->set("CNPJRedeAdquirente", str.substr(119, 14));
+    obj->set("NumeroControleRedeAdicional", str.substr(133, 32));
+    obj->set("CodigoBandeiraSefaz", str.substr(165, 4));
+    obj->set("NomePortador", str.substr(169, 32));
+    obj->set("Reservado", str.substr(201, 54));
+    obj->set("CRLF", str.substr(255, 2));
+
+    return obj;
+}
+
 void messageObtemLogUltimaTransacao(const Poco::JSON::Object::Ptr &obj) {
     std::array<char, 1024> buffer{};
 
@@ -883,7 +950,7 @@ void messageObtemLogUltimaTransacao(const Poco::JSON::Object::Ptr &obj) {
     } catch (const std::exception &e) {
         std::cerr << __func__ << ": " << e.what() << std::endl;
         try {
-            res = str;
+            res = logTransacaoDeprecadaParaJson(str);
         } catch (const std::exception &e) {
             std::cerr << __func__ << ": " << e.what() << std::endl;
         }
