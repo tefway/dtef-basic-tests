@@ -1008,6 +1008,15 @@ void messageFinaliza(const Poco::JSON::Object::Ptr &obj) {
     broadcastJson(msgToCli);
 }
 
+void messageFinalizaTransacao(const Poco::JSON::Object::Ptr &obj) {
+    int retn = integ.FinalizaTransacao();
+
+    auto msgToCli = obj;
+    msgToCli->set("retn", retn);
+
+    broadcastJson(msgToCli);
+}
+
 void messageObtemComprovante(const Poco::JSON::Object::Ptr &obj) {
     auto numeroControle = obj->getValue<std::string>("numeroControle");
     char comprovanteBuffer[1024]{};
@@ -1075,6 +1084,7 @@ void processMessages() {
             {"versao", messageVersao},
             {"inicializa", messageInicializa},
             {"finaliza", messageFinaliza},
+            {"finalizaTransacao", messageFinalizaTransacao},
             {"obtemComprovante", messageObtemComprovante},
             {"cancelaOperacao", messageCancelaOperacao},
             {"cancelamentoPagamento", messageCancelamentoPagamento},
