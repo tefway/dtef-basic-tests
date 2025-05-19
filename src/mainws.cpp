@@ -1,5 +1,6 @@
 #include "CallOnDtor.hpp"
 #include "ClasseIntegracao.h"
+#include "ParseLog.hpp"
 #include <Poco/BinaryReader.h>
 #include <Poco/JSON/Object.h>
 #include <Poco/JSON/Parser.h>
@@ -953,7 +954,23 @@ void messageObtemLogUltimaTransacao(const Poco::JSON::Object::Ptr &obj) {
         std::cerr << __func__ << ": " << e.what() << std::endl;
         try {
             msgToCli->set("dados_raw", str);
-            res = logTransacaoDeprecadaParaJson(str);
+            auto objtmp = logTransacaoDeprecadaParaJson(str);
+
+            integ.ObtemLogUltimaTransacao(buffer.data(), false);
+            msgToCli->set("dados_raw_1", str);
+
+            try {
+                parseTransacaoParaJson(convertTextToUTF8(buffer.data()),
+                                       objtmp);
+            } catch (const Poco::Exception &e) {
+                std::cerr << __func__ << ": " << e.what() << std::endl;
+                msgToCli->set("dados_raw_err", std::string(e.what()));
+            } catch (const std::exception &e) {
+                std::cerr << __func__ << ": " << e.what() << std::endl;
+                msgToCli->set("dados_raw_err", std::string(e.what()));
+            }
+
+            res = objtmp;
         } catch (const std::exception &e) {
             std::cerr << __func__ << ": " << e.what() << std::endl;
         }
