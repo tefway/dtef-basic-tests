@@ -32,7 +32,7 @@ jobs:
           export CURRENT_SOURCE_DIR=$(pwd)
           mkdir -p build && cd build
           export CURRENT_BUILD_DIR=$(pwd)
-          cmake .. -G Ninja -DCMAKE_BUILD_TYPE:STRING=Release
+          cmake .. -G Ninja -DCMAKE_BUILD_TYPE:STRING=Release -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++ -static"
           cmake --build . --config Release --target all -j $(nproc) --
 
       - name: Test project
