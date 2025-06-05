@@ -476,6 +476,25 @@ int ClasseIntegracao::TransacaoCartaoVoucher(CampoNumerico<12> valor,
     return retorno;
 }
 
+int ClasseIntegracao::TransacaoQRCode(CampoNumerico<12> valor,
+                                      CampoNumerico<6> numeroCupom,
+                                      char *pNumeroControle,
+                                      char *TransactionParamsData) {
+    int retorno = 11;
+    memset(pNumeroControle, 0, 6);
+
+    if (handle != nullptr) {
+        FTransacaoQRCode TransacaoQRCodePtr =
+            FTransacaoQRCode(GetProcAddress(handle, "TransacaoQRCode"));
+        if (TransacaoQRCodePtr != NULL) {
+            retorno = TransacaoQRCodePtr(valor, numeroCupom, pNumeroControle,
+                                         TransactionParamsData);
+        }
+    }
+
+    return retorno;
+}
+
 int ClasseIntegracao::TransacaoCheque(char *pValorTransacao, char *pNumeroCupom,
                                       char *pNumeroControle,
                                       char *pQuantidadeCheques,

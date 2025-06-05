@@ -826,6 +826,38 @@ void messageVoucher(const Poco::JSON::Object::Ptr &obj) {
     broadcastJson(msgToCli);
 }
 
+void messageQrCode(const Poco::JSON::Object::Ptr &obj) {
+    auto valor = obj->getValue<std::string>("valor");
+    auto cupom = obj->getValue<std::string>("cupom");
+
+    char buffControle[128]{};
+
+    std::string TransactionParamsData;
+    try {
+        auto TransactionParamsDataObj = obj->getObject("TransactionParamsData");
+        if (!TransactionParamsDataObj.isNull()) {
+            std::stringstream sstr;
+            TransactionParamsDataObj->stringify(sstr);
+            TransactionParamsData = sstr.str();
+        }
+    } catch (const Poco::Exception &e) {
+        std::cerr << "Error stringify TransactionParamsData: "
+                  << e.displayText() << std::endl;
+    } catch (const std::exception &e) {
+        std::cerr << "Error stringify TransactionParamsData: " << e.what()
+                  << std::endl;
+    }
+
+    auto retn = integ.TransacaoQRCode(valor, cupom, buffControle,
+                                      TransactionParamsData.data());
+
+    auto msgToCli = obj;
+    msgToCli->set("retn", retn);
+    msgToCli->set("numeroControle", std::string(buffControle));
+
+    broadcastJson(msgToCli);
+}
+
 void messageConfirma(const Poco::JSON::Object::Ptr &obj) {
     auto numeroControle = obj->getValue<std::string>("numeroControle");
 
@@ -1100,6 +1132,7 @@ void processMessages() {
             {"transacaoCredito", messageCredito},
             {"transacaoDebito", messageDebito},
             {"transacaoVoucher", messageVoucher},
+            {"transacaoQrCode", messageQrCode},
             {"confirma", messageConfirma},
             {"desfaz", messageDesfaz},
             {"procura", messageProcuraPinPad},

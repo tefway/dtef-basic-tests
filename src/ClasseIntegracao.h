@@ -227,6 +227,10 @@ class ClasseIntegracao {
     typedef int(CALLING_COV *FTransacaoCartaoVoucher)(char *pValorTransacao,
                                                       char *pNumeroCupom,
                                                       char *pNumeroControle);
+    typedef int(CALLING_COV *FTransacaoQRCode)(char *pValorTransacao,
+                                               char *pNumeroCupom,
+                                               char *pNumeroControle,
+                                               char *pTransactionParamsData);
     typedef int(CALLING_COV *FTransacaoCheque)(
         char *pValorTransacao, char *pNumeroCupom, char *pNumeroControle,
         char *pQuantidadeCheques, char *pPeriodicidadeCheques,
@@ -815,6 +819,8 @@ class ClasseIntegracao {
     int TransacaoCartaoVoucher(CampoNumerico<12> valor,
                                CampoNumerico<6> numeroCupom,
                                char *pNumeroControle);
+    int TransacaoQRCode(CampoNumerico<12> valor, CampoNumerico<6> numeroCupom,
+                        char *pNumeroControle, char *TransactionParamsData);
     int TransacaoCheque(char *pValorTransacao, char *pNumeroCupom,
                         char *pNumeroControle, char *pQuantidadeCheques,
                         char *pPeriodicidadeCheques, char *pDataPrimeiroCheque,
