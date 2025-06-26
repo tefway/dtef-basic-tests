@@ -309,6 +309,38 @@ void *CALLING_COV callback_beep() {
     return nullptr;
 }
 
+/**
+* @brief Comandos genéricos enviados do client Linx TEF. Quando necessário para
+executar uma transação, o Paykit poderá chamar este callback para que a
+automação execute alguma operação. Uma das situações onde isso é usado é na
+apresentação do QR Code para transações com carteiras digitais. Caso os comandos
+não sejam implementados, na medida do possível o client do Linx TEF tentará
+processar o comando. Por exemplo, caso o comando de apresentação de QR Code não
+seja implementado o Paykit exibirá uma tela com o QR Code mesmo que a integração
+seja feita com as telas da automação. Campo solicitação 	Formato
+Descrição pDadosEntrada 	A 	Dados de solicitação do comando. Os
+comandos são enviados no formato TLV, com código de comando com 3 bytes e
+tamanho com 6 bytes. O tamanho se refere ao tamanho dos dados e não ao tamanho
+total. Por exemplo, o comando para apresentação de um código QR Code fica assim:
+001000030LINXeFuiMzDmu85TcYCimGcOeMvUwM
+Código de comando: 001
+Tamanho: 000030
+QRCode: LINXeFuiMzDmu85TcYCimGcOeMvUwM
+Campo de Retorno 	Formato 	Descrição
+pDadosRetorno 	N 	Dados de retorno da solicitação
+
+Comandos:
+Código 	Descrição
+001 	Apresentar QR Code. O campo de dados contém o QR Code que deve ser
+apresentado 002 	Lista de wallets disponíveis para utilização no QR. Os
+nomes são separados por ;
+
+Retorno:
+Retorno 	Descrição
+0 	O comando foi executado corretamente.
+-1 	O comando não foi implementado
+-2 	Ocorreu um erro ao executar o comando
+*/
 int CALLING_COV comandos(char *pDadosEntrada, char *pRetorno) {
     std::cout << __func__ << ": " << (pDadosEntrada ? pDadosEntrada : "null")
               << " " << (pRetorno ? pRetorno : "null") << std::endl;
@@ -396,6 +428,7 @@ int CALLING_COV comandos(char *pDadosEntrada, char *pRetorno) {
     }
 
     msgToCli->set("comandos", arr);
+    msgToCli->set("aguarda_resposta_para_prosseguir", false);
 
     if (!parseError.empty()) {
         msgToCli->set("error", parseError);
@@ -405,7 +438,7 @@ int CALLING_COV comandos(char *pDadosEntrada, char *pRetorno) {
 
     broadcastJson(msgToCli);
 
-    return 0;
+    return -1; // Manter de momento a resposta como comando não implementado
 }
 
 std::atomic<bool> operacaoCancelada = false;
