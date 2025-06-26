@@ -20,6 +20,7 @@
 #include <atomic>
 #include <chrono>
 #include <csignal>
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -311,6 +312,99 @@ void *CALLING_COV callback_beep() {
 int CALLING_COV comandos(char *pDadosEntrada, char *pRetorno) {
     std::cout << __func__ << ": " << (pDadosEntrada ? pDadosEntrada : "null")
               << " " << (pRetorno ? pRetorno : "null") << std::endl;
+    /* TLV
+    comandos: 002000006003Pix
+    comandos:
+    00100021600020101021226840014br.gov.bcb.pix2562pix-h.stone.com.br/pix/v2/bf3bf286-2d63-4719-9cbc-4490da6def48520400005303986540510.005802BR5923Nome
+    do CPF 071623616846014RIO DE
+    JANEIRO622905255c7f6e4e94df7866038269db16304FB46
+    */
+    if (!pDadosEntrada) {
+        std::cerr << __func__ << ": Invalid parameters" << std::endl;
+        return -1;
+    }
+
+    /*
+    pDadosEntrada 	A 	Dados de solicitação do comando.
+    Os comandos são enviados no formato TLV, com código de comando com 3 bytes e
+    tamanho com 6 bytes. O tamanho se refere ao tamanho dos dados e não ao
+    tamanho total. Por exemplo, o comando para apresentação de um código QR Code
+    fica assim: 001000030LINXeFuiMzDmu85TcYCimGcOeMvUwM Código de comando: 001
+    Tamanho: 000030
+    QRCode: LINXeFuiMzDmu85TcYCimGcOeMvUwM
+    */
+    std::string dadosEntrada(pDadosEntrada);
+
+    if (dadosEntrada.empty()) {
+        std::cerr << __func__ << ": Empty command" << std::endl;
+        return -1;
+    }
+
+    struct TLVCommand {
+        std::string tipo;    // Tipo do comando (3 bytes)
+        std::string tamanho; // Tamanho dos dados (6 bytes)
+        std::string dados;   // Dados do comando
+    };
+
+    std::vector<TLVCommand> comandos;
+
+    size_t pos = 0;
+    std::string parseError;
+
+    while (pos < dadosEntrada.size()) {
+        if (dadosEntrada.size() - pos < 9) {
+            std::cerr << __func__ << ": Invalid command format" << std::endl;
+            parseError = "Invalid command format";
+            break;
+        }
+
+        TLVCommand cmd;
+        cmd.tipo = dadosEntrada.substr(pos, 3);
+        cmd.tamanho = dadosEntrada.substr(pos + 3, 6);
+        try {
+            size_t tamanho = std::stoul(cmd.tamanho);
+
+            if (dadosEntrada.size() - pos < 9 + tamanho) {
+                std::cerr << __func__ << ": Invalid command size" << std::endl;
+                parseError = "Invalid command size";
+                break;
+            }
+
+            cmd.dados = dadosEntrada.substr(pos + 9, tamanho);
+            comandos.push_back(cmd);
+            pos += 9 + tamanho;
+        } catch (const std::exception &e) {
+            std::cerr << __func__ << ": Error parsing command: " << e.what()
+                      << std::endl;
+            parseError = "Error parsing command: " + std::string(e.what()) +
+                         " at position " + std::to_string(pos);
+            break;
+        }
+    }
+
+    Poco::JSON::Object::Ptr msgToCli = new Poco::JSON::Object;
+    msgToCli->set("requestType", "comandos");
+    msgToCli->set("rawData", dadosEntrada);
+
+    Poco::JSON::Array::Ptr arr = new Poco::JSON::Array;
+    for (const auto &cmd : comandos) {
+        Poco::JSON::Object::Ptr cmdObj = new Poco::JSON::Object;
+        cmdObj->set("tipo", cmd.tipo);
+        cmdObj->set("tamanho", cmd.tamanho);
+        cmdObj->set("dados", cmd.dados);
+        arr->add(cmdObj);
+    }
+
+    msgToCli->set("comandos", arr);
+
+    if (!parseError.empty()) {
+        msgToCli->set("error", parseError);
+    } else {
+        msgToCli->set("error", {});
+    }
+
+    broadcastJson(msgToCli);
+
     return 0;
 }
 
