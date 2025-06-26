@@ -12,6 +12,7 @@ const RequestType = Object.freeze({
     TRANSACAO_DEBITO: 'transacaoDebito',
     TRANSACAO_CREDITO: 'transacaoCredito',
     TRANSACAO_VOUCHER: 'transacaoVoucher',
+    TRANSACAO_QRCODE: 'transacaoQrCode',
     CONFIRMA: 'confirma',
     DESFAZ: 'desfaz',
     CONSULTA_PDV: 'consultaPDV',

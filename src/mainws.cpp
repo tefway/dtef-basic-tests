@@ -308,6 +308,12 @@ void *CALLING_COV callback_beep() {
     return nullptr;
 }
 
+int CALLING_COV comandos(char *pDadosEntrada, char *pRetorno) {
+    std::cout << __func__ << ": " << (pDadosEntrada ? pDadosEntrada : "null")
+              << " " << (pRetorno ? pRetorno : "null") << std::endl;
+    return 0;
+}
+
 std::atomic<bool> operacaoCancelada = false;
 
 void messageCancelaOperacao(const Poco::JSON::Object::Ptr &obj) {
@@ -1348,6 +1354,7 @@ int main() {
     integ.setCallBackSolicitaConfirmacao(callbackSolicitaConfirmacao);
     integ.setCallBackEntraValor(callbackEntraValor);
     integ.setCallBackEntraValorEspecial(callbackEntraValorEspecial);
+    integ.setCallbackComandos(comandos);
 
     uint16_t port = static_cast<uint16_t>(std::stoul(getenvor("PORT", "9000")));
 

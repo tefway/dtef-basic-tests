@@ -111,6 +111,7 @@ class ClasseIntegracao {
 
     typedef void(CALLING_COV *pCallBackDisplayTerminal)(char *pMensagem);
     typedef void(CALLING_COV *pCallBackDisplayErro)(char *pMensagem);
+    typedef int(CALLING_COV *pComandos)(char *pDadosEntrada, char *pRetorno);
     typedef void(CALLING_COV *pCallBackMensagem)(char *pMensagem);
     typedef void(CALLING_COV *pCallBackBeep)(void);
     typedef int(CALLING_COV *pCallBackSolicitaConfirmacao)(char *pMensagem);
@@ -160,6 +161,7 @@ class ClasseIntegracao {
                                                          char *sRetorno);
 
     typedef void(CALLING_COV *RegPDVDisplayTerminal)(pCallBackDisplayTerminal);
+    typedef void(CALLING_COV *RegPDVComandos)(pComandos);
     typedef void(CALLING_COV *RegPDVDisplayErro)(pCallBackDisplayErro);
     typedef void(CALLING_COV *RegPDVMensagem)(pCallBackMensagem);
     typedef void(CALLING_COV *RegPDVBeep)(pCallBackBeep);
@@ -1342,6 +1344,7 @@ class ClasseIntegracao {
 
     void
     setCallBackDisplayTerminal(ptrCallBackDisplayTerminal cbDisplayTerminal);
+    void setCallbackComandos(pComandos cbComandos);
     void setCallBackDisplayErro(ptrCallBackDisplayErro cbCallBackDisplayErro);
     void setCallBackDisplayMensagem(ptrCallBackMensagem cbDisplayMensagem);
     void setCallBackBeep(ptrCallBackBeep cbBeep);

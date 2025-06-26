@@ -64,6 +64,13 @@ void ClasseIntegracao::setCallBackDisplayTerminal(
         RegPDVDisplayTerminalPtr((pCallBackDisplayTerminal)cbDisplayTerminal);
 }
 
+void ClasseIntegracao::setCallbackComandos(pComandos cbComandos) {
+    RegPDVComandos RegPDVComandosPtr =
+        RegPDVComandos(GetProcAddress(handle, "RegPDVComandos"));
+    if (RegPDVComandosPtr != NULL)
+        RegPDVComandosPtr((pComandos)cbComandos);
+}
+
 void ClasseIntegracao::setCallBackDisplayErro(
     ptrCallBackDisplayErro cbCallBackDisplayErro) {
     RegPDVDisplayErro RegPDVDisplayErroPtr =
