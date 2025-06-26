@@ -7,6 +7,7 @@ const rl = readline.createInterface({ input: process.stdin, output: process.stdo
 const RequestType = Object.freeze({
     INICIALIZA: 'inicializa',
     FINALIZA: 'finaliza',
+    FINALIZA_TRANSACAO: 'finalizaTransacao',
     VERSAO: 'versao',
     PROCURA: 'procura',
     TRANSACAO_DEBITO: 'transacaoDebito',
@@ -110,6 +111,11 @@ class WebSocketClient {
 
                 // Example: Automatically confirm the transaction
                 this.sendRequest(RequestType.CONFIRMA, { numeroControle: response.numeroControle });
+
+                this.sendRequest(RequestType.FINALIZA_TRANSACAO, { numeroControle: response.numeroControle });
+
+
+                client.sendRequest(RequestType.OBTEM_LOG_ULTIMA_TRANSACAO);
 
 
                 /*setTimeout(() => {
@@ -217,7 +223,7 @@ sendPing();
 
 // type the valor
 const valor = process.env.VALOR || '1000';
-const cupom = process.env.CUPOM || '123456';
+const cupom = process.env.CUPOM || '522656';
 
 // You can send different types of requests like this:
 setTimeout(() => {
@@ -233,8 +239,6 @@ setTimeout(() => {
 
     setTimeout(() => {
         client.sendRequest(RequestType.TRANSACAO_DEBITO, { valor: valor, cupom: cupom });
-        
-        client.sendRequest(RequestType.OBTEM_LOG_ULTIMA_TRANSACAO);
     }, 5000);
 }, 1000);
 
